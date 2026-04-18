@@ -9,6 +9,7 @@ import {
   LogOut, Menu, X, ChevronRight, Sparkles, Info
 } from 'lucide-react';
 
+// Define the type for a single maintenance request
 interface MaintenanceRequest {
   id: string;
   title: string;
@@ -47,11 +48,15 @@ export default function MaintenanceManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
-      const { data: buildingData } = await supabase
+      const { data: buildingData, error: buildingError } = await supabase
         .from('buildings')
         .select('*')
         .eq('syndic_id', user.id)
         .single();
+      
+      if (buildingError) {
+        console.error('Error fetching building:', buildingError);
+      }
       
       if (buildingData) {
         setBuilding(buildingData);
@@ -62,35 +67,93 @@ export default function MaintenanceManagement() {
   };
 
   const fetchRequests = async (buildingId: string) => {
-    // First get all residents in this building
-    const { data: residents } = await supabase
-      .from('residents')
-      .select('id')
-      .eq('building_id', buildingId);
+    // 1. Fetch all maintenance requests for this building
+    const { data: requestsData, error: requestsError } = await supabase
+      .from('maintenance_requests')
+      .select('*')
+      .eq('building_id', buildingId)
+      .order('created_at', { ascending: false });
     
-    const residentIds = residents?.map(r => r.id) || [];
-    
-    if (residentIds.length === 0) {
+    if (requestsError) {
+      console.error('Error fetching requests:', requestsError);
       setRequests([]);
       return;
     }
     
-    const { data } = await supabase
-      .from('maintenance_requests')
-      .select('*, residents(full_name, apartment_number)')
-      .in('resident_id', residentIds)
-      .order('created_at', { ascending: false });
+    if (!requestsData || requestsData.length === 0) {
+      setRequests([]);
+      return;
+    }
     
-    setRequests(data || []);
+    // 2. Get all unique resident IDs from the requests
+    const residentIds = [...new Set(requestsData.map(r => r.resident_id).filter(Boolean))];
+    
+    if (residentIds.length === 0) {
+      // No residents linked, just set the requests without resident info
+      const simpleRequests: MaintenanceRequest[] = requestsData.map(r => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        priority: r.priority,
+        status: r.status,
+        created_at: r.created_at,
+      }));
+      setRequests(simpleRequests);
+      return;
+    }
+    
+    // 3. Fetch the resident details separately
+    const { data: residentsData, error: residentsError } = await supabase
+      .from('residents')
+      .select('id, full_name, apartment_number')
+      .in('id', residentIds);
+    
+    if (residentsError) {
+      console.error('Error fetching residents:', residentsError);
+      const simpleRequests: MaintenanceRequest[] = requestsData.map(r => ({
+        id: r.id,
+        title: r.title,
+        description: r.description,
+        priority: r.priority,
+        status: r.status,
+        created_at: r.created_at,
+      }));
+      setRequests(simpleRequests);
+      return;
+    }
+    
+    // 4. Create a map for quick resident lookup
+    const residentMap = new Map();
+    residentsData?.forEach(res => {
+      residentMap.set(res.id, {
+        full_name: res.full_name,
+        apartment_number: res.apartment_number
+      });
+    });
+    
+    // 5. Merge the data
+    const mergedRequests: MaintenanceRequest[] = requestsData.map(request => ({
+      id: request.id,
+      title: request.title,
+      description: request.description,
+      priority: request.priority,
+      status: request.status,
+      created_at: request.created_at,
+      residents: residentMap.get(request.resident_id)
+    }));
+    
+    setRequests(mergedRequests);
   };
 
   const updateStatus = async (requestId: string, status: string) => {
+    const updateData: any = { status };
+    if (status === 'completed') {
+      updateData.completed_at = new Date().toISOString();
+    }
+    
     const { error } = await supabase
       .from('maintenance_requests')
-      .update({ 
-        status, 
-        completed_at: status === 'completed' ? new Date().toISOString() : null 
-      })
+      .update(updateData)
       .eq('id', requestId);
     
     if (error) {
@@ -99,12 +162,12 @@ export default function MaintenanceManagement() {
       if (building) {
         await fetchRequests(building.id);
       }
+      alert(`Request marked as ${status}!`);
     }
   };
 
   const sendMessage = async () => {
     if (!messageText || !selectedRequest) return;
-    
     // Here you would integrate with WhatsApp, Email, or Supabase notifications
     alert(`Message sent to resident about "${selectedRequest.title}": ${messageText}`);
     setShowMessageModal(false);
@@ -295,8 +358,8 @@ export default function MaintenanceManagement() {
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
             <Info size={18} className="text-blue-600" />
             <div>
-              <p className="text-sm font-medium text-blue-800">Maintenance requests are submitted by residents</p>
-              <p className="text-xs text-blue-600">You can update the status and communicate with residents here.</p>
+              <p className="text-sm font-medium text-blue-800">Maintenance requests from residents</p>
+              <p className="text-xs text-blue-600">Click Start Work or Mark Complete to update status</p>
             </div>
           </div>
 
@@ -309,68 +372,75 @@ export default function MaintenanceManagement() {
                 <p className="text-xs mt-1">Residents will submit requests from their portal.</p>
               </div>
             ) : (
-              requests.map((req) => (
-                <div key={req.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition">
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`p-2 rounded-lg ${getPriorityColor(req.priority)}`}>
-                          {getPriorityIcon(req.priority)}
+              requests.map((req) => {
+                const isPending = req.status === 'pending';
+                const isInProgress = req.status === 'in_progress';
+                const priorityClass = getPriorityColor(req.priority);
+                const statusClass = getStatusBadge(req.status);
+                
+                return (
+                  <div key={req.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition">
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-lg ${priorityClass}`}>
+                            {getPriorityIcon(req.priority)}
+                          </div>
+                          <h3 className="font-semibold text-slate-800">{req.title}</h3>
                         </div>
-                        <h3 className="font-semibold text-slate-800">{req.title}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}>
+                          {req.status === 'in_progress' ? 'In Progress' : req.status}
+                        </span>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(req.status)}`}>
-                        {req.status === 'in_progress' ? 'In Progress' : req.status}
-                      </span>
-                    </div>
-                    
-                    <p className="text-slate-600 text-sm mb-4">{req.description}</p>
-                    
-                    <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-                      <span className="flex items-center gap-1">
-                        <User size={12} />
-                        {req.residents?.full_name || 'Unknown'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Home size={12} />
-                        Apt {req.residents?.apartment_number || '?'}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Calendar size={12} />
-                        {new Date(req.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      {req.status === 'pending' && (
-                        <button
-                          onClick={() => updateStatus(req.id, 'in_progress')}
-                          className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
+                      
+                      <p className="text-slate-600 text-sm mb-4">{req.description}</p>
+                      
+                      <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
+                        <span className="flex items-center gap-1">
+                          <User size={12} />
+                          {req.residents?.full_name || 'Unknown'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Home size={12} />
+                          Apt {req.residents?.apartment_number || '?'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(req.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        {isPending && (
+                          <button
+                            onClick={() => updateStatus(req.id, 'in_progress')}
+                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
+                          >
+                            Start Work
+                          </button>
+                        )}
+                        {isInProgress && (
+                          <button
+                            onClick={() => updateStatus(req.id, 'completed')}
+                            className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition"
+                          >
+                            Mark Complete
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => {
+                            setSelectedRequest(req);
+                            setShowMessageModal(true);
+                          }}
+                          className="px-4 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-1 hover:bg-slate-50 transition"
                         >
-                          Start Work
+                          <MessageSquare size={14} /> Message
                         </button>
-                      )}
-                      {req.status === 'in_progress' && (
-                        <button
-                          onClick={() => updateStatus(req.id, 'completed')}
-                          className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition"
-                        >
-                          Mark Complete
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => {
-                          setSelectedRequest(req);
-                          setShowMessageModal(true);
-                        }}
-                        className="px-4 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-1 hover:bg-slate-50 transition"
-                      >
-                        <MessageSquare size={14} /> Message
-                      </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -397,7 +467,7 @@ export default function MaintenanceManagement() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Type your message here..."
               />
-              <p className="text-xs text-slate-400 mt-2">This message will be sent to the resident's dashboard and email.</p>
+              <p className="text-xs text-slate-400 mt-2">This message will be sent to the resident's dashboard.</p>
             </div>
             <div className="p-5 border-t border-slate-100 flex gap-3">
               <button onClick={() => setShowMessageModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">Cancel</button>

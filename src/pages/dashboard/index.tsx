@@ -7,10 +7,10 @@ import {
   LogOut, Menu, X, DollarSign, TrendingUp, Clock, AlertCircle,
   CheckCircle, Calendar, Download, Settings, Bell, PlusCircle,
   Activity, ArrowUpRight, ArrowDownRight, ChevronRight,
-  UserPlus, ArrowRight, BarChart3, Percent, Landmark, Key,
+  UserPlus, ArrowRight, Percent, Landmark, Key,
   Zap, Shield, Smartphone, Globe, Coffee, Star, Award,
   Target, Eye, Heart, ThumbsUp, MessageCircle, FileText,
-  PieChart, Grid, Layers, Sparkles, Rocket
+  PieChart, Grid, Layers, Sparkles, Rocket, BarChart3
 } from 'lucide-react';
 
 export default function SyndicDashboard() {
@@ -153,6 +153,18 @@ export default function SyndicDashboard() {
     router.push('/login');
   };
 
+  const menuItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: Grid, href: '/dashboard' },
+    { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
+    { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
+    { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
+    { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
+    { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
+    { id: 'statistics', label: 'Statistics', icon: BarChart3, href: '/dashboard/statistics' },
+    { id: 'reports', label: 'Reports', icon: FileText, href: '/dashboard/reports' },
+    { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings' },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -198,16 +210,7 @@ export default function SyndicDashboard() {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
-            {[
-              { id: 'dashboard', label: 'Dashboard', icon: Grid, href: '/dashboard' },
-              { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
-              { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
-              { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
-              { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
-              { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
-              { id: 'reports', label: 'Reports', icon: FileText, href: '/dashboard/reports' },
-              { id: 'settings', label: 'Settings', icon: Settings, href: '/dashboard/settings' },
-            ].map((item) => {
+            {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -402,7 +405,6 @@ export default function SyndicDashboard() {
                 </div>
                 
                 <div className="p-4">
-                  {/* Payment Stats */}
                   <div className="grid grid-cols-3 gap-3 mb-4">
                     <div className="text-center p-2 bg-slate-50 rounded-lg">
                       <p className="text-[10px] text-slate-500">This month</p>
@@ -418,7 +420,6 @@ export default function SyndicDashboard() {
                     </div>
                   </div>
 
-                  {/* Filter Tabs */}
                   <div className="flex gap-2 mb-4 border-b border-slate-100">
                     {['All', 'Villas', 'Apartments'].map((tab, i) => (
                       <button key={i} className={`px-3 py-1.5 text-xs font-medium transition-all ${
@@ -429,7 +430,6 @@ export default function SyndicDashboard() {
                     ))}
                   </div>
 
-                  {/* Payment Breakdown */}
                   <div className="space-y-2">
                     <div className="flex justify-between items-center py-1.5">
                       <div className="flex items-center gap-2">
