@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import { useResidentAuth } from '../../hooks/useResidentAuth';
+import { T } from '../../styles/theme';
 import { 
   Wrench, Plus, AlertCircle, CheckCircle, Clock,
-  Flame, Shield, Zap, ArrowLeft, X, Send
+  Flame, Shield, Zap, ArrowLeft, X, Send,
+  Sparkles, Home, Calendar, MessageSquare, Eye
 } from 'lucide-react';
 
 interface MaintenanceRequest {
@@ -15,26 +17,55 @@ interface MaintenanceRequest {
   status: string;
   created_at: string;
   completed_at: string | null;
+  syndic_note?: string | null;
+  assigned_to?: string | null;
+}
+
+interface RequestNote {
+  id: string;
+  request_id: string;
+  message: string;
+  sender_type: string;
+  created_at: string;
 }
 
 export default function ResidentMaintenance() {
   const router = useRouter();
   const { resident, loading: authLoading } = useResidentAuth();
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
+  const [notes, setNotes] = useState<Record<string, RequestNote[]>>({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showDetails, setShowDetails] = useState<MaintenanceRequest | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     priority: 'medium'
   });
   const [submitting, setSubmitting] = useState(false);
+  const [buildingName, setBuildingName] = useState('');
+  const [newNote, setNewNote] = useState('');
 
   useEffect(() => {
     if (!authLoading && resident?.id) {
       fetchRequests();
+      fetchBuildingName();
     }
   }, [authLoading, resident]);
+
+  const fetchBuildingName = async () => {
+    if (!resident?.apartment_number) return;
+    
+    const { data: apartment } = await supabase
+      .from('apartments')
+      .select('buildings(name)')
+      .eq('apartment_number', resident.apartment_number)
+      .single();
+    
+    if (apartment?.buildings) {
+      setBuildingName((apartment.buildings as any).name);
+    }
+  };
 
   const fetchRequests = async () => {
     if (!resident?.id) return;
@@ -50,8 +81,31 @@ export default function ResidentMaintenance() {
       console.error('Error fetching requests:', error);
     } else {
       setRequests(data || []);
+      // Fetch notes for each request
+      if (data && data.length > 0) {
+        await fetchNotesForRequests(data.map(r => r.id));
+      }
     }
     setLoading(false);
+  };
+
+  const fetchNotesForRequests = async (requestIds: string[]) => {
+    const { data, error } = await supabase
+      .from('maintenance_notes')
+      .select('*')
+      .in('request_id', requestIds)
+      .order('created_at', { ascending: true });
+    
+    if (!error && data) {
+      const notesMap: Record<string, RequestNote[]> = {};
+      data.forEach(note => {
+        if (!notesMap[note.request_id]) {
+          notesMap[note.request_id] = [];
+        }
+        notesMap[note.request_id].push(note);
+      });
+      setNotes(notesMap);
+    }
   };
 
   const submitRequest = async () => {
@@ -62,10 +116,9 @@ export default function ResidentMaintenance() {
 
     setSubmitting(true);
     
-    // Get apartment building_id
     const { data: apartment } = await supabase
       .from('apartments')
-      .select('building_id')
+      .select('building_id, apartment_number')
       .eq('apartment_number', resident?.apartment_number)
       .single();
 
@@ -86,34 +139,83 @@ export default function ResidentMaintenance() {
       setShowForm(false);
       setFormData({ title: '', description: '', priority: 'medium' });
       await fetchRequests();
-      alert('✅ Maintenance request submitted successfully!');
+      alert('✅ Maintenance request submitted! The syndic has been notified.');
     }
     setSubmitting(false);
   };
 
-  const getPriorityIcon = (priority: string) => {
-    switch(priority) {
-      case 'emergency': return <Flame size={14} className="text-red-500" />;
-      case 'high': return <AlertCircle size={14} className="text-orange-500" />;
-      case 'medium': return <Clock size={14} className="text-yellow-500" />;
-      default: return <Shield size={14} className="text-blue-500" />;
+  const sendMessage = async () => {
+    if (!newNote.trim() || !showDetails) return;
+    
+    const { error } = await supabase
+      .from('maintenance_notes')
+      .insert([{
+        request_id: showDetails.id,
+        message: newNote,
+        sender_type: 'resident',
+        sender_id: resident?.id
+      }]);
+
+    if (error) {
+      alert('Error sending message: ' + error.message);
+    } else {
+      setNewNote('');
+      await fetchNotesForRequests([showDetails.id]);
+      // Refresh the notes display
+      const updatedNotes = await supabase
+        .from('maintenance_notes')
+        .select('*')
+        .eq('request_id', showDetails.id)
+        .order('created_at', { ascending: true });
+      
+      if (updatedNotes.data) {
+        setNotes(prev => ({
+          ...prev,
+          [showDetails.id]: updatedNotes.data as RequestNote[]
+        }));
+      }
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityIcon = (priority: string) => {
     switch(priority) {
-      case 'emergency': return 'bg-red-100 text-red-700';
-      case 'high': return 'bg-orange-100 text-orange-700';
-      case 'medium': return 'bg-yellow-100 text-yellow-700';
-      default: return 'bg-blue-100 text-blue-700';
+      case 'emergency': return <Flame size={14} color="#EF4444" />;
+      case 'high': return <AlertCircle size={14} color="#F97316" />;
+      case 'medium': return <Clock size={14} color="#EAB308" />;
+      default: return <Shield size={14} color="#3B82F6" />;
+    }
+  };
+
+  const getPriorityStyle = (priority: string) => {
+    switch(priority) {
+      case 'emergency': return { bg: T.redLight, text: T.red };
+      case 'high': return { bg: T.orangeLight, text: T.orangeDeep };
+      case 'medium': return { bg: '#FEF9C3', text: '#854D0E' };
+      default: return { bg: T.tealLight, text: T.teal };
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'completed': return { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, label: 'Completed' };
-      case 'in_progress': return { bg: 'bg-blue-100', text: 'text-blue-700', icon: Zap, label: 'In Progress' };
-      default: return { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'Pending' };
+      case 'completed': 
+        return { bg: T.greenLight, text: T.green, icon: CheckCircle, label: 'Completed' };
+      case 'in_progress': 
+        return { bg: '#DBEAFE', text: '#1E40AF', icon: Zap, label: 'In Progress' };
+      default: 
+        return { bg: '#FEF3C7', text: '#92400E', icon: Clock, label: 'Pending' };
+    }
+  };
+
+  const getStatusMessage = (status: string) => {
+    switch(status) {
+      case 'pending':
+        return 'Your request has been submitted and is waiting for review.';
+      case 'in_progress':
+        return 'A technician has been assigned to your request.';
+      case 'completed':
+        return 'Your request has been completed. Thank you for your patience.';
+      default:
+        return '';
     }
   };
 
@@ -126,8 +228,15 @@ export default function ResidentMaintenance() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800"></div>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
@@ -135,149 +244,559 @@ export default function ResidentMaintenance() {
   if (!resident) return null;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div style={{ 
+      minHeight: '100vh', 
+      background: T.canvasBg,
+      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      paddingBottom: 40
+    }}>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .fade-in-up {
+          animation: fadeInUp 0.5s ease both;
+        }
+        .slide-in {
+          animation: slideIn 0.4s ease both;
+        }
+        .slide-up {
+          animation: slideUp 0.3s ease-out;
+        }
+        .card-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(5,15,36,0.1);
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="bg-blue-800 px-5 pt-8 pb-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-              <ArrowLeft size={20} className="text-white" />
-            </button>
-            <div>
-              <h1 className="text-white text-2xl font-bold">Maintenance</h1>
-              <p className="text-blue-200 text-sm">Track your requests</p>
+      <div style={{
+        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
+        padding: '24px 20px 40px',
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button 
+                onClick={() => router.back()} 
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <ArrowLeft size={20} color="#fff" />
+              </button>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Sparkles size={14} color={T.orange} />
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>SERVICE REQUESTS</span>
+                </div>
+                <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Maintenance</h1>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{buildingName || 'Your Building'}</p>
+              </div>
             </div>
+            <button
+              onClick={() => setShowForm(true)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                background: T.orange,
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(245,166,35,0.3)'
+              }}
+            >
+              <Plus size={20} color="#fff" />
+            </button>
           </div>
-          <button
-            onClick={() => setShowForm(true)}
-            className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-lg"
-          >
-            <Plus size={20} className="text-white" />
-          </button>
         </div>
       </div>
 
       {/* Stats Summary */}
-      <div className="px-5 -mt-4">
-        <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-gray-400 text-xs">Total</p>
-              <p className="text-gray-800 font-bold text-xl">{stats.total}</p>
-            </div>
-            <div>
-              <p className="text-amber-500 text-xs">Pending</p>
-              <p className="text-amber-600 font-bold text-xl">{stats.pending}</p>
-            </div>
-            <div>
-              <p className="text-green-500 text-xs">Completed</p>
-              <p className="text-green-600 font-bold text-xl">{stats.completed}</p>
-            </div>
+      <div style={{ padding: '0 20px', marginTop: -30 }}>
+        <div className="fade-in-up" style={{
+          background: T.white,
+          borderRadius: 20,
+          padding: '16px 20px',
+          boxShadow: '0 4px 12px rgba(5,15,36,0.08)',
+          border: `1px solid ${T.border}`,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Total</p>
+            <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 800, color: T.navy }}>{stats.total}</p>
+          </div>
+          <div style={{ width: 1, height: 40, background: T.border }} />
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 11, color: T.orange }}>Pending</p>
+            <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 800, color: T.orange }}>{stats.pending}</p>
+          </div>
+          <div style={{ width: 1, height: 40, background: T.border }} />
+          <div style={{ textAlign: 'center', flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 11, color: T.green }}>Completed</p>
+            <p style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 800, color: T.green }}>{stats.completed}</p>
           </div>
         </div>
       </div>
 
       {/* Requests List */}
-      <div className="px-5 mt-5 space-y-3">
+      <div style={{ padding: '20px' }}>
         {requests.length === 0 ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-            <Wrench size={48} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-400">No maintenance requests yet</p>
+          <div className="fade-in-up" style={{
+            background: T.white,
+            borderRadius: 24,
+            padding: '48px 20px',
+            textAlign: 'center',
+            border: `1px solid ${T.border}`
+          }}>
+            <div style={{ width: 70, height: 70, borderRadius: 35, background: T.surface, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Wrench size={32} color={T.textSm} />
+            </div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.navy }}>No Requests Yet</h3>
+            <p style={{ margin: '8px 0 16px', fontSize: 13, color: T.textSm }}>Submit your first maintenance request</p>
             <button
               onClick={() => setShowForm(true)}
-              className="mt-3 px-4 py-2 bg-orange-500 text-white rounded-xl text-sm"
+              style={{
+                padding: '10px 24px',
+                background: T.orange,
+                border: 'none',
+                borderRadius: 30,
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
             >
-              Create First Request
+              Create Request
             </button>
           </div>
         ) : (
-          requests.map((req) => {
-            const status = getStatusBadge(req.status);
-            const StatusIcon = status.icon;
-            return (
-              <div key={req.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-lg ${getPriorityColor(req.priority)}`}>
-                      {getPriorityIcon(req.priority)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {requests.map((req, index) => {
+              const status = getStatusBadge(req.status);
+              const StatusIcon = status.icon;
+              const priorityStyle = getPriorityStyle(req.priority);
+              const isPending = req.status === 'pending';
+              const requestNotes = notes[req.id] || [];
+              
+              return (
+                <div 
+                  key={req.id} 
+                  className="card-hover fade-in-up"
+                  style={{
+                    background: T.white,
+                    borderRadius: 20,
+                    padding: '16px',
+                    border: `1px solid ${T.border}`,
+                    borderLeft: isPending ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
+                    transitionDelay: `${index * 0.05}s`,
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowDetails(req)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        padding: '6px 10px',
+                        borderRadius: 10,
+                        background: priorityStyle.bg,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6
+                      }}>
+                        {getPriorityIcon(req.priority)}
+                        <span style={{ fontSize: 11, fontWeight: 600, color: priorityStyle.text, textTransform: 'capitalize' }}>
+                          {req.priority}
+                        </span>
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.navy }}>{req.title}</h3>
                     </div>
-                    <p className="font-semibold text-gray-800">{req.title}</p>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      background: status.bg
+                    }}>
+                      <StatusIcon size={10} color={status.text} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: status.text }}>{status.label}</span>
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${status.bg}`}>
-                    <StatusIcon size={12} className={status.text} />
-                    <span className={`text-xs font-medium ${status.text}`}>{status.label}</span>
+                  
+                  <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>
+                    {req.description.length > 100 ? req.description.substring(0, 100) + '...' : req.description}
+                  </p>
+                  
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    paddingTop: 12,
+                    borderTop: `1px solid ${T.border}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Calendar size={12} color={T.textSm} />
+                      <span style={{ fontSize: 11, color: T.textSm }}>
+                        {new Date(req.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Eye size={12} color={T.teal} />
+                      <span style={{ fontSize: 11, color: T.teal }}>Tap for details</span>
+                    </div>
                   </div>
                 </div>
-                <p className="text-gray-500 text-sm mt-2">{req.description}</p>
-                <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">{new Date(req.created_at).toLocaleDateString()}</p>
-                  {req.status === 'pending' && (
-                    <div className="flex items-center gap-1 text-amber-600 text-xs">
-                      <Clock size={12} /> Awaiting response
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Request Details Modal */}
+      {showDetails && (
+        <>
+          <div 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(5,15,36,0.5)',
+              zIndex: 90,
+              backdropFilter: 'blur(4px)'
+            }}
+            onClick={() => setShowDetails(null)}
+          />
+          <div className="slide-up" style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: T.white,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            zIndex: 100,
+            padding: 24,
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>{showDetails.title}</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>
+                  Request ID: {showDetails.id.slice(0, 8)}
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowDetails(null)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  background: T.surface,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} color={T.textMd} />
+              </button>
+            </div>
+
+            {/* Status Message */}
+            <div style={{
+              background: T.surface,
+              borderRadius: 16,
+              padding: 16,
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                {getStatusBadge(showDetails.status).icon({ size: 16, color: getStatusBadge(showDetails.status).text })}
+                <span style={{ fontWeight: 600, color: getStatusBadge(showDetails.status).text }}>
+                  {getStatusBadge(showDetails.status).label}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: 13, color: T.textMd }}>
+                {getStatusMessage(showDetails.status)}
+              </p>
+            </div>
+
+            {/* Request Details */}
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ margin: 0, fontSize: 13, color: T.text, lineHeight: 1.5 }}>
+                {showDetails.description}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+                <Calendar size={12} color={T.textSm} />
+                <span style={{ fontSize: 11, color: T.textSm }}>
+                  Submitted: {new Date(showDetails.created_at).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Messages Section */}
+            {(notes[showDetails.id]?.length > 0 || true) && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <MessageSquare size={14} color={T.teal} />
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>Messages</h4>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {notes[showDetails.id]?.map((note) => (
+                    <div key={note.id} style={{
+                      background: note.sender_type === 'syndic' ? T.tealLight : T.surface,
+                      borderRadius: 12,
+                      padding: 10,
+                      marginLeft: note.sender_type === 'syndic' ? 0 : 20,
+                      marginRight: note.sender_type === 'syndic' ? 20 : 0
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 600, color: note.sender_type === 'syndic' ? T.teal : T.orange }}>
+                          {note.sender_type === 'syndic' ? 'Syndic' : 'You'}
+                        </span>
+                        <span style={{ fontSize: 9, color: T.textSm }}>
+                          {new Date(note.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 12, color: T.text }}>{note.message}</p>
                     </div>
-                  )}
-                  {req.status === 'in_progress' && (
-                    <div className="flex items-center gap-1 text-blue-600 text-xs">
-                      <Zap size={12} /> Being handled
-                    </div>
+                  ))}
+                  {(!notes[showDetails.id] || notes[showDetails.id].length === 0) && (
+                    <p style={{ fontSize: 12, color: T.textSm, textAlign: 'center' }}>No messages yet</p>
                   )}
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
+            )}
+
+            {/* Send Message */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 8 }}>Send a message</label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <textarea
+                  rows={2}
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Ask for an update or provide more information..."
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 12,
+                    fontSize: 13,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!newNote.trim()}
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: newNote.trim() ? T.orange : T.textSm,
+                    border: 'none',
+                    cursor: newNote.trim() ? 'pointer' : 'not-allowed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Send size={18} color="#fff" />
+                </button>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowDetails(null)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'transparent',
+                border: `1px solid ${T.border}`,
+                borderRadius: 14,
+                color: T.textMd,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </>
+      )}
 
       {/* New Request Modal */}
       {showForm && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setShowForm(false)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 p-6 animate-slide-up shadow-2xl">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">New Request</h3>
-              <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                <X size={16} className="text-gray-500" />
+          <div 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(5,15,36,0.5)',
+              zIndex: 90,
+              backdropFilter: 'blur(4px)'
+            }}
+            onClick={() => setShowForm(false)}
+          />
+          <div className="slide-up" style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: T.white,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            zIndex: 100,
+            padding: 24,
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>New Request</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Describe the issue you're facing</p>
+              </div>
+              <button 
+                onClick={() => setShowForm(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  background: T.surface,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} color={T.textMd} />
               </button>
             </div>
-            <div className="space-y-4">
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Title *</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500"
-                  placeholder="e.g., Broken AC"
+                  placeholder="e.g., Broken AC, Leaking Pipe"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 12,
+                    fontSize: 14,
+                    outline: 'none'
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Description</label>
                 <textarea
                   rows={3}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500"
-                  placeholder="Describe the issue..."
+                  placeholder="Please provide details about the issue..."
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 12,
+                    fontSize: 14,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                    resize: 'vertical'
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Priority</label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500"
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 12,
+                    fontSize: 14,
+                    background: T.white,
+                    outline: 'none'
+                  }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 >
-                  <option value="low">Low - Can wait</option>
-                  <option value="medium">Medium - Needs attention</option>
-                  <option value="high">High - Urgent</option>
+                  <option value="low">Low - Can wait (3-5 days)</option>
+                  <option value="medium">Medium - Needs attention (1-2 days)</option>
+                  <option value="high">High - Urgent (24 hours)</option>
                   <option value="emergency">Emergency - Immediate!</option>
                 </select>
               </div>
             </div>
+            
             <button
               onClick={submitRequest}
-              disabled={submitting}
-              className="w-full mt-6 py-3 bg-orange-500 text-white rounded-xl font-semibold disabled:opacity-50"
+              disabled={submitting || !formData.title}
+              style={{
+                width: '100%',
+                marginTop: 24,
+                padding: '14px',
+                background: (!formData.title) ? T.textSm : T.orange,
+                border: 'none',
+                borderRadius: 14,
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: (!formData.title || submitting) ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.7 : 1,
+                transition: 'all 0.15s'
+              }}
             >
               {submitting ? 'Submitting...' : 'Submit Request'}
             </button>

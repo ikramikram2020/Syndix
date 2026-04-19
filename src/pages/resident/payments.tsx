@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import { useResidentAuth } from '../../hooks/useResidentAuth';
+import { T } from '../../styles/theme';
 import { 
   CreditCard, CheckCircle, Clock, AlertCircle,
-  ArrowLeft, X, Zap, Shield, Lock
+  ArrowLeft, X, Lock, TrendingUp, Wallet, Calendar
 } from 'lucide-react';
 
 interface Payment {
@@ -26,7 +27,6 @@ export default function ResidentPayments() {
   const [processing, setProcessing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Fetch payments when resident is available
   useEffect(() => {
     if (!authLoading && resident?.id) {
       fetchPayments();
@@ -37,7 +37,6 @@ export default function ResidentPayments() {
     if (!resident?.id) return;
     
     setLoading(true);
-    console.log('Fetching payments for:', resident.id);
     
     try {
       const { data, error } = await supabase
@@ -47,9 +46,8 @@ export default function ResidentPayments() {
         .order('month', { ascending: false });
       
       if (error) {
-        console.error('Error:', error);
+        console.error('Error fetching payments:', error);
       } else {
-        console.log('Payments found:', data?.length || 0);
         setPayments(data || []);
       }
     } catch (err) {
@@ -59,11 +57,11 @@ export default function ResidentPayments() {
     }
   };
 
-  const processFakePayment = async (payment: Payment) => {
+  const processPayment = async (payment: Payment) => {
     setProcessing(true);
     setProcessingId(payment.id);
     
-    alert(`Processing payment of ${payment.amount.toLocaleString()} MAD...`);
+    // Simulate payment processing
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     const { error } = await supabase
@@ -77,7 +75,7 @@ export default function ResidentPayments() {
     if (error) {
       alert('Payment failed: ' + error.message);
     } else {
-      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} MAD has been paid.`);
+      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid.`);
       await fetchPayments();
       setSelectedPayment(null);
     }
@@ -96,222 +94,436 @@ export default function ResidentPayments() {
     total: payments.reduce((sum, p) => sum + p.amount, 0),
     paid: payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0),
     pending: payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0),
+    collectionRate: payments.length > 0 ? (payments.filter(p => p.status === 'paid').length / payments.length) * 100 : 0
   };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
       case 'paid':
-        return { bg: 'bg-green-100', text: 'text-green-700', icon: CheckCircle, label: 'Paid' };
+        return { bg: T.greenLight, text: T.green, icon: CheckCircle, label: 'Paid' };
       case 'pending':
-        return { bg: 'bg-amber-100', text: 'text-amber-700', icon: Clock, label: 'Pending' };
+        return { bg: T.orangeLight, text: T.orangeDeep, icon: Clock, label: 'Pending' };
       default:
-        return { bg: 'bg-red-100', text: 'text-red-700', icon: AlertCircle, label: 'Overdue' };
+        return { bg: T.redLight, text: T.red, icon: AlertCircle, label: 'Overdue' };
     }
   };
 
-  // Show loading state
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-800"></div>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: T.canvasBg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
-  // Show login prompt if no resident
   if (!resident) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500">Please login to view payments</p>
-          <button onClick={() => router.push('/resident/login')} className="mt-4 px-4 py-2 bg-orange-500 text-white rounded-lg">Login</button>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: T.canvasBg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <CreditCard size={48} color={T.textSm} />
+          <p style={{ color: T.textMd, marginTop: 16 }}>Please login to view payments</p>
+          <button 
+            onClick={() => router.push('/resident')} 
+            style={{ marginTop: 16, padding: '10px 24px', background: T.orange, border: 'none', borderRadius: 12, color: '#fff', cursor: 'pointer' }}
+          >
+            Login
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div style={{ 
+      minHeight: '100vh', 
+      background: T.canvasBg,
+      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      paddingBottom: 100
+    }}>
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+        .slide-up {
+          animation: slideUp 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in {
+          animation: fadeIn 0.4s ease both;
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="bg-blue-800 px-5 pt-8 pb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-            <ArrowLeft size={20} className="text-white" />
+      <div style={{
+        background: `linear-gradient(135deg, ${T.navy}, ${T.teal})`,
+        padding: '24px 20px 32px',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button 
+            onClick={() => router.back()} 
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              background: 'rgba(255,255,255,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              border: 'none'
+            }}
+          >
+            <ArrowLeft size={20} color="#fff" />
           </button>
           <div>
-            <h1 className="text-white text-2xl font-bold">Payments</h1>
-            <p className="text-blue-200 text-sm">View and pay your monthly fees</p>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Payments</h1>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>View and pay your monthly fees</p>
           </div>
         </div>
       </div>
 
-      {/* Stats Summary */}
-      <div className="px-5 -mt-4">
-        <div className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center">
-              <p className="text-gray-400 text-xs">Total</p>
-              <p className="text-gray-800 font-bold text-lg">{stats.total.toLocaleString()} MAD</p>
+      {/* Stats Cards */}
+      <div style={{ padding: '0 16px', marginTop: -20 }}>
+        <div className="fade-in" style={{
+          background: T.white,
+          borderRadius: 20,
+          padding: 20,
+          boxShadow: '0 4px 12px rgba(27,43,107,0.08)',
+          border: `1px solid ${T.border}`
+        }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <div style={{ textAlign: 'center' }}>
+              <Wallet size={20} color={T.teal} style={{ margin: '0 auto 4px' }} />
+              <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Total</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.navy }}>{stats.total.toLocaleString()} DZD</p>
             </div>
-            <div className="text-center">
-              <p className="text-green-500 text-xs">Paid</p>
-              <p className="text-green-600 font-bold text-lg">{stats.paid.toLocaleString()} MAD</p>
+            <div style={{ textAlign: 'center' }}>
+              <CheckCircle size={20} color={T.green} style={{ margin: '0 auto 4px' }} />
+              <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Paid</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.green }}>{stats.paid.toLocaleString()} DZD</p>
             </div>
-            <div className="text-center">
-              <p className="text-orange-500 text-xs">Pending</p>
-              <p className="text-orange-600 font-bold text-lg">{stats.pending.toLocaleString()} MAD</p>
+            <div style={{ textAlign: 'center' }}>
+              <Clock size={20} color={T.orange} style={{ margin: '0 auto 4px' }} />
+              <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Pending</p>
+              <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.orange }}>{stats.pending.toLocaleString()} DZD</p>
+            </div>
+          </div>
+          {/* Progress Bar */}
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: T.textSm, marginBottom: 6 }}>
+              <span>Collection Rate</span>
+              <span>{stats.collectionRate.toFixed(0)}%</span>
+            </div>
+            <div style={{ height: 6, background: T.border, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ width: `${stats.collectionRate}%`, height: '100%', background: T.green, borderRadius: 3 }} />
             </div>
           </div>
         </div>
       </div>
 
       {/* Filter Tabs */}
-      <div className="px-5 mt-5">
-        <div className="flex gap-2 bg-gray-100 rounded-xl p-1">
+      <div style={{ padding: '20px 16px' }}>
+        <div style={{ display: 'flex', gap: 8, background: T.white, borderRadius: 14, padding: 4, border: `1px solid ${T.border}` }}>
           {[
-            { id: 'all', label: 'All' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'paid', label: 'Paid' }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
-                filter === tab.id ? 'bg-orange-500 text-white shadow-sm' : 'text-gray-500'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+            { id: 'all', label: 'All', icon: null },
+            { id: 'pending', label: 'Pending', icon: Clock },
+            { id: 'paid', label: 'Paid', icon: CheckCircle }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = filter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setFilter(tab.id)}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  background: isActive ? T.navy : 'transparent',
+                  border: 'none',
+                  borderRadius: 10,
+                  color: isActive ? '#fff' : T.textMd,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s'
+                }}
+              >
+                {Icon && <Icon size={14} color={isActive ? '#fff' : T.textMd} />}
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Payments List */}
-      <div className="px-5 mt-5 space-y-3">
+      <div style={{ padding: '0 16px' }}>
         {filteredPayments.length === 0 ? (
-          <div className="bg-white rounded-2xl p-10 text-center shadow-sm">
-            <CreditCard size={48} className="mx-auto text-gray-300 mb-3" />
-            <p className="text-gray-400">No payments found</p>
-            <p className="text-xs text-gray-300 mt-2">Resident ID: {resident.id.substring(0, 8)}...</p>
+          <div style={{
+            background: T.white,
+            borderRadius: 20,
+            padding: 48,
+            textAlign: 'center',
+            border: `1px solid ${T.border}`
+          }}>
+            <CreditCard size={48} color={T.textSm} style={{ margin: '0 auto 12px' }} />
+            <p style={{ margin: 0, fontSize: 14, color: T.textMd }}>No payments found</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Your payment history will appear here</p>
           </div>
         ) : (
-          filteredPayments.map((payment) => {
-            const status = getStatusBadge(payment.status);
-            const StatusIcon = status.icon;
-            const isProcessing = processingId === payment.id;
-            
-            return (
-              <div
-                key={payment.id}
-                className={`bg-white rounded-2xl p-4 shadow-sm border transition-all cursor-pointer ${
-                  payment.status === 'pending' ? 'border-l-4 border-l-orange-500 hover:shadow-md' : 'border-gray-100'
-                }`}
-                onClick={() => !isProcessing && payment.status === 'pending' && setSelectedPayment(payment)}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}
-                    </p>
-                    <p className="text-xs text-gray-400">Due: {new Date(payment.due_date).toLocaleDateString()}</p>
-                  </div>
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full ${status.bg}`}>
-                    <StatusIcon size={12} className={status.text} />
-                    <span className={`text-xs font-medium ${status.text}`}>{status.label}</span>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
-                  <p className="text-2xl font-bold text-gray-800">{payment.amount.toLocaleString()} MAD</p>
-                  {payment.status === 'pending' && !isProcessing && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedPayment(payment);
-                      }}
-                      className="px-5 py-2 bg-orange-500 text-white rounded-xl text-sm font-medium shadow-sm hover:bg-orange-600 transition"
-                    >
-                      Pay Now
-                    </button>
-                  )}
-                  {isProcessing && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-xl">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                      <span className="text-sm text-gray-500">Processing...</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {filteredPayments.map((payment, index) => {
+              const status = getStatusBadge(payment.status);
+              const StatusIcon = status.icon;
+              const isProcessing = processingId === payment.id;
+              const dueDate = new Date(payment.due_date);
+              const isOverdue = payment.status === 'pending' && dueDate < new Date();
+              
+              return (
+                <div
+                  key={payment.id}
+                  className="fade-in"
+                  style={{
+                    background: T.white,
+                    borderRadius: 18,
+                    padding: 16,
+                    border: `1px solid ${T.border}`,
+                    borderLeft: payment.status === 'pending' ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
+                    transition: 'all 0.15s',
+                    cursor: payment.status === 'pending' ? 'pointer' : 'default'
+                  }}
+                  onClick={() => !isProcessing && payment.status === 'pending' && setSelectedPayment(payment)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <Calendar size={14} color={T.textSm} />
+                        <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.navy }}>
+                          {new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                      <p style={{ margin: 0, fontSize: 11, color: isOverdue ? T.red : T.textSm }}>
+                        Due: {dueDate.toLocaleDateString()}
+                        {isOverdue && ' (Overdue)'}
+                      </p>
                     </div>
-                  )}
-                  {payment.status === 'paid' && payment.paid_at && (
-                    <p className="text-xs text-green-600">Paid on {new Date(payment.paid_at).toLocaleDateString()}</p>
-                  )}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      padding: '4px 10px',
+                      borderRadius: 20,
+                      background: status.bg
+                    }}>
+                      <StatusIcon size={10} color={status.text} />
+                      <span style={{ fontSize: 10, fontWeight: 600, color: status.text }}>{status.label}</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+                    <div>
+                      <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Amount</p>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>{payment.amount.toLocaleString()} DZD</p>
+                    </div>
+                    {payment.status === 'pending' && !isProcessing && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPayment(payment);
+                        }}
+                        style={{
+                          padding: '8px 20px',
+                          background: T.orange,
+                          border: 'none',
+                          borderRadius: 12,
+                          color: '#fff',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = T.orangeDeep}
+                        onMouseLeave={e => e.currentTarget.style.background = T.orange}
+                      >
+                        Pay Now
+                      </button>
+                    )}
+                    {isProcessing && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: T.surface, borderRadius: 12 }}>
+                        <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+                        <span style={{ fontSize: 12, color: T.textMd }}>Processing...</span>
+                      </div>
+                    )}
+                    {payment.status === 'paid' && payment.paid_at && (
+                      <p style={{ margin: 0, fontSize: 11, color: T.green }}>
+                        Paid on {new Date(payment.paid_at).toLocaleDateString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          })
+              );
+            })}
+          </div>
         )}
       </div>
 
       {/* Payment Modal */}
       {selectedPayment && (
         <>
-          <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setSelectedPayment(null)} />
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-50 p-6 animate-slide-up shadow-2xl">
-            <div className="flex justify-between items-center mb-6">
+          <div 
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,26,62,0.5)', zIndex: 40 }}
+            onClick={() => setSelectedPayment(null)}
+          />
+          <div className="slide-up" style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: T.white,
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            zIndex: 50,
+            padding: 24,
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
-                <h3 className="text-xl font-bold text-gray-800">Payment Details</h3>
-                <p className="text-sm text-gray-500">Complete your payment securely</p>
+                <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>Payment Details</h3>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Complete your payment securely</p>
               </div>
-              <button onClick={() => setSelectedPayment(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                <X size={16} className="text-gray-500" />
+              <button 
+                onClick={() => setSelectedPayment(null)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 10,
+                  background: T.surface,
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} color={T.textMd} />
               </button>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Month</span>
-                  <span className="font-medium text-gray-800">
-                    {new Date(selectedPayment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Due Date</span>
-                  <span className="text-gray-800">{new Date(selectedPayment.due_date).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-gray-200">
-                  <span className="text-gray-700 font-medium">Amount</span>
-                  <span className="text-2xl font-bold text-gray-800">{selectedPayment.amount.toLocaleString()} MAD</span>
-                </div>
+            <div style={{
+              background: T.surface,
+              borderRadius: 20,
+              padding: 20,
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ color: T.textSm, fontSize: 13 }}>Month</span>
+                <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>
+                  {new Date(selectedPayment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
+                <span style={{ color: T.textSm, fontSize: 13 }}>Due Date</span>
+                <span style={{ fontWeight: 600, color: T.text, fontSize: 13 }}>{new Date(selectedPayment.due_date).toLocaleDateString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+                <span style={{ fontWeight: 600, color: T.textMd }}>Amount</span>
+                <span style={{ fontSize: 24, fontWeight: 800, color: T.navy }}>{selectedPayment.amount.toLocaleString()} DZD</span>
               </div>
             </div>
 
-            <div className="mb-6">
-              <p className="text-sm font-medium text-gray-700 mb-3">Payment Method</p>
-              <div className="flex items-center gap-3 p-3 border border-orange-200 rounded-xl bg-orange-50">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <CreditCard size={18} className="text-orange-500" />
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 12 }}>Payment Method</p>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: 14,
+                background: T.orangeLight,
+                borderRadius: 14,
+                border: `1px solid ${T.orange}30`
+              }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CreditCard size={20} color={T.orange} />
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-gray-800">Credit Card</p>
-                  <p className="text-xs text-gray-400">Pay with Visa, Mastercard</p>
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontWeight: 600, color: T.text }}>Credit Card</p>
+                  <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Pay with Visa, Mastercard</p>
                 </div>
-                <div className="w-4 h-4 rounded-full bg-orange-500"></div>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: T.orange }} />
               </div>
             </div>
 
-            <div className="flex items-center gap-2 mb-5 p-3 bg-blue-50 rounded-xl">
-              <Lock size={14} className="text-blue-500" />
-              <p className="text-xs text-blue-600">Your payment is secure and encrypted</p>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '10px 14px',
+              background: T.tealLight,
+              borderRadius: 12,
+              marginBottom: 20
+            }}>
+              <Lock size={14} color={T.teal} />
+              <p style={{ margin: 0, fontSize: 11, color: T.teal }}>Your payment is secure and encrypted</p>
             </div>
 
             <button 
-              onClick={() => processFakePayment(selectedPayment)}
-              className="w-full py-3 bg-orange-500 text-white rounded-xl font-semibold shadow-lg hover:bg-orange-600 transition"
+              onClick={() => processPayment(selectedPayment)}
+              disabled={processing}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: processing ? T.textSm : T.orange,
+                border: 'none',
+                borderRadius: 14,
+                color: '#fff',
+                fontSize: 15,
+                fontWeight: 600,
+                cursor: processing ? 'not-allowed' : 'pointer',
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={e => { if (!processing) e.currentTarget.style.background = T.orangeDeep }}
+              onMouseLeave={e => { if (!processing) e.currentTarget.style.background = T.orange }}
             >
-              Pay {selectedPayment.amount.toLocaleString()} MAD
+              {processing ? 'Processing...' : `Pay ${selectedPayment.amount.toLocaleString()} DZD`}
             </button>
             
             <button 
               onClick={() => setSelectedPayment(null)}
-              className="w-full mt-3 py-3 border border-gray-200 rounded-xl text-gray-500 font-medium hover:bg-gray-50 transition"
+              style={{
+                width: '100%',
+                marginTop: 12,
+                padding: '12px',
+                background: 'transparent',
+                border: `1px solid ${T.border}`,
+                borderRadius: 14,
+                color: T.textMd,
+                fontSize: 14,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
             >
               Cancel
             </button>
