@@ -27,14 +27,18 @@ export function ResidentAuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Check for existing session on load
   useEffect(() => {
+    // Check for existing session
     const storedResident = localStorage.getItem('resident_session');
     const storedToken = localStorage.getItem('resident_token');
     
+    console.log('Stored session check:', { storedResident, storedToken });
+    
     if (storedResident && storedToken) {
       try {
-        setResident(JSON.parse(storedResident));
+        const parsedResident = JSON.parse(storedResident);
+        setResident(parsedResident);
+        console.log('Session restored:', parsedResident);
       } catch (e) {
         console.error('Failed to parse resident session', e);
         localStorage.removeItem('resident_session');
@@ -46,6 +50,8 @@ export function ResidentAuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (token: string): Promise<boolean> => {
     setLoading(true);
+    console.log('Attempting login with token:', token);
+    
     try {
       const response = await fetch('/api/verify-qr', {
         method: 'POST',
@@ -60,9 +66,12 @@ export function ResidentAuthProvider({ children }: { children: ReactNode }) {
         setResident(data.resident);
         localStorage.setItem('resident_session', JSON.stringify(data.resident));
         localStorage.setItem('resident_token', data.token);
+        console.log('Login successful, resident saved:', data.resident);
         return true;
+      } else {
+        console.error('Login failed:', data.error);
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Login error:', error);
       return false;
@@ -78,16 +87,14 @@ export function ResidentAuthProvider({ children }: { children: ReactNode }) {
     router.push('/resident/login');
   };
 
-  const value: ResidentAuthContextType = {
-    resident,
-    loading,
-    login,
-    logout,
-    isAuthenticated: !!resident,
-  };
-
   return (
-    <ResidentAuthContext.Provider value={value}>
+    <ResidentAuthContext.Provider value={{
+      resident,
+      loading,
+      login,
+      logout,
+      isAuthenticated: !!resident,
+    }}>
       {children}
     </ResidentAuthContext.Provider>
   );
