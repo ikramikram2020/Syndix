@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Link from "next/link"; // ← Next.js Link
-import { useRouter } from "next/router"; // ← Next.js router
+import Link from "next/link";
+import { useRouter } from "next/router";
 import {
   Mail,
   Lock,
@@ -13,7 +13,7 @@ import {
 import { signIn } from "../lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter(); // ← Next.js router
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -25,14 +25,24 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    const { error: signInError } = await signIn(email, password);
-
-    setLoading(false);
+    const { error: signInError, data } = await signIn(email, password);
+    
+    console.log('=== LOGIN DEBUG ===');
+    console.log('Login response:', { error: signInError, hasSession: !!data?.session });
+    console.log('Email used:', email);
+    console.log('==================');
 
     if (signInError) {
       setError(signInError.message || "Invalid email or password.");
+      setLoading(false);
+    } else if (data?.session) {
+      // Success - wait a moment for session to be saved
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 500);
     } else {
-      router.push("/dashboard"); // ← Next.js navigation
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     }
   };
 
@@ -41,8 +51,6 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24 bg-white">
         <div className="w-full max-w-md mx-auto">
           <Link href="/" className="inline-flex items-center gap-3 mb-10 group">
-            {" "}
-            {/* ← href not to */}
             <img
               src="/5769129754689736308.jpg"
               alt="Syndix"
@@ -110,7 +118,7 @@ export default function LoginPage() {
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs text-brand-teal hover:text-brand-navy font-medium transition-colors"
+                  className="text-xs text-orange-500 hover:text-orange-600 font-medium transition-colors"
                 >
                   Forgot password?
                 </Link>
@@ -192,10 +200,10 @@ export default function LoginPage() {
               Demo credentials
             </p>
             <p className="text-xs text-slate-400 font-mono">
-              Email: test@example.com
+              Email: zakariaabdo391@gmail.com
             </p>
             <p className="text-xs text-slate-400 font-mono">
-              Password: test123456
+              Password: (your password)
             </p>
           </div>
         </div>
