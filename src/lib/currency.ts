@@ -1,18 +1,13 @@
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('ar-DZ', {
-    style: 'currency',
-    currency: 'DZD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return amount.toLocaleString() + ' DZD';
 };
 
 export const formatCurrencyShort = (amount: number): string => {
   if (amount >= 1000000) {
-    return (amount / 1000000).toFixed(1) + 'M DA';
+    return (amount / 1000000).toFixed(1) + 'M DZD';
   }
   if (amount >= 1000) {
-    return (amount / 1000).toFixed(0) + 'K DA';
+    return (amount / 1000).toFixed(0) + 'K DZD';
   }
-  return amount.toLocaleString() + ' DA';
+  return amount.toLocaleString() + ' DZD';
 };
