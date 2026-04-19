@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { signOut } from '../../lib/auth';
+import Layout from '../../components/Layout';
+import { T } from '../../styles/theme';
+
 import { 
-  Home, Plus, Edit, Trash2, Eye, Search, Users,
-  Building2, CreditCard, Wrench, Megaphone, QrCode,
-  LogOut, Menu, X, ChevronRight, Sparkles, MapPin,
-  CheckCircle, XCircle, AlertCircle
+  Home, Plus, Edit, Trash2, Building2, X,
+  CheckCircle, AlertCircle
 } from 'lucide-react';
+
+
 
 interface Apartment {
   id: string;
@@ -33,7 +35,6 @@ export default function ApartmentsManagement() {
   const [building, setBuilding] = useState<Building | null>(null);
   const [apartments, setApartments] = useState<Apartment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingApartment, setEditingApartment] = useState<Apartment | null>(null);
   const [formData, setFormData] = useState({
@@ -47,7 +48,6 @@ export default function ApartmentsManagement() {
     if (building_id) {
       fetchBuildingAndApartments();
     } else {
-      // If no building_id, show building selector
       fetchUserBuildings();
     }
   }, [building_id]);
@@ -61,7 +61,6 @@ export default function ApartmentsManagement() {
         .eq('syndic_id', user.id);
       
       if (data && data.length > 0) {
-        // Redirect to first building or show selector
         router.push(`/dashboard/apartments?building_id=${data[0].id}`);
       } else {
         setLoading(false);
@@ -72,7 +71,6 @@ export default function ApartmentsManagement() {
   const fetchBuildingAndApartments = async () => {
     setLoading(true);
     
-    // Fetch building
     const { data: buildingData } = await supabase
       .from('buildings')
       .select('*')
@@ -80,7 +78,6 @@ export default function ApartmentsManagement() {
       .single();
     setBuilding(buildingData);
 
-    // Fetch apartments
     const { data: apartmentsData } = await supabase
       .from('apartments')
       .select('*, residents(full_name)')
@@ -98,7 +95,6 @@ export default function ApartmentsManagement() {
     }
 
     if (editingApartment) {
-      // Update existing apartment
       const { error } = await supabase
         .from('apartments')
         .update({
@@ -115,7 +111,6 @@ export default function ApartmentsManagement() {
         alert('Apartment updated successfully!');
       }
     } else {
-      // Create new apartment
       const { error } = await supabase
         .from('apartments')
         .insert([{
@@ -175,49 +170,42 @@ export default function ApartmentsManagement() {
     });
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
-
   const getStatusBadge = (status: string) => {
-    switch(status) {
-      case 'occupied':
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"><CheckCircle size={10} /> Occupied</span>;
-      case 'vacant':
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700"><Home size={10} /> Vacant</span>;
-      default:
-        return <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{status}</span>;
+    if (status === 'occupied') {
+      return {
+        bg: T.greenLight,
+        text: '#057A55',
+        icon: <CheckCircle size={10} />,
+        label: 'Occupied'
+      };
+    } else {
+      return {
+        bg: T.tealLight,
+        text: T.teal,
+        icon: <Home size={10} />,
+        label: 'Vacant'
+      };
     }
   };
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-    { id: 'buildings', label: 'Buildings', icon: Building2, href: '/dashboard/buildings' },
-    { id: 'apartments', label: 'Apartments', icon: Home, href: '/dashboard/apartments' },
-    { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
-    { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
-    { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
-    { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
-  ];
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+      <div style={{ minHeight:'100vh', background: T.navy, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', border:`3px solid ${T.orange}`, borderTopColor:'transparent', animation:'spin 0.75s linear infinite' }} />
+        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13, fontFamily:'system-ui', margin:0 }}>Loading SYNDIX…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   if (!building && !building_id) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <Building2 size={48} className="mx-auto mb-4 text-slate-300" />
-          <h2 className="text-xl font-semibold text-slate-700">No Building Selected</h2>
-          <p className="text-slate-500 mt-2">Please select a building first</p>
-          <button onClick={() => router.push('/dashboard/buildings')} className="mt-4 px-4 py-2 bg-blue-700 text-white rounded-lg">Go to Buildings</button>
+      <div style={{ minHeight:'100vh', background: T.canvasBg, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div style={{ textAlign:'center' }}>
+          <Building2 size={48} color={T.textSm} style={{ margin:'0 auto 16px' }} />
+          <h2 style={{ fontSize:20, fontWeight:700, color: T.navy, marginBottom:8 }}>No Building Selected</h2>
+          <p style={{ color: T.textSm, marginBottom:16 }}>Please select a building first</p>
+          <button onClick={() => router.push('/dashboard/buildings')} style={{ padding:'10px 24px', background: T.navy, border:'none', borderRadius:10, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>Go to Buildings</button>
         </div>
       </div>
     );
@@ -230,252 +218,248 @@ export default function ApartmentsManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Mobile Menu Button */}
-      <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md">
-        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-gradient-to-b from-blue-900 to-blue-950 shadow-2xl transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        
-        <div className="flex flex-col h-full">
-          <div className="p-5 border-b border-blue-800/50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
-                <Sparkles size={18} className="text-white" />
-              </div>
-              <div>
-                <p className="text-lg font-black text-white tracking-tight">SYNDIX</p>
-                <p className="text-[8px] font-semibold text-orange-400 tracking-wider uppercase">Apartments</p>
-              </div>
+    <Layout title="Apartments" subtitle={`Manage apartments in ${building?.name}`}>
+      {/* Hero Section */}
+      <div className="fade-up" style={{
+        marginBottom:24, borderRadius:20, padding:'26px 30px',
+        background: `linear-gradient(130deg, ${T.navyDeep} 0%, ${T.navy} 55%, #1A4D7C 100%)`,
+        position:'relative', overflow:'hidden',
+      }}>
+        <div style={{ position:'absolute', right:-40, top:-40, width:220, height:220, borderRadius:'50%', background:`radial-gradient(circle, ${T.teal}20 0%, transparent 70%)`, pointerEvents:'none' }} />
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:`linear-gradient(90deg, transparent, ${T.orange}, ${T.teal}, transparent)` }} />
+        <div style={{ position:'relative', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div style={{ width:7, height:7, borderRadius:'50%', background:T.green }} />
+              <span style={{ fontSize:10, color:'rgba(255,255,255,0.45)', letterSpacing:2, fontWeight:600, textTransform:'uppercase' }}>Property Units</span>
             </div>
+            <h2 style={{ margin:'0 0 6px', fontSize:24, fontWeight:800, color:'#fff', letterSpacing:'-0.5px' }}>
+              Apartments 🏠
+            </h2>
+            <p style={{ margin:0, fontSize:13, color:'rgba(255,255,255,0.45)' }}>
+              {building?.name} · {stats.occupied} occupied, {stats.vacant} vacant
+            </p>
           </div>
+          <button
+            onClick={() => {
+              resetForm();
+              setShowModal(true);
+            }}
+            style={{
+              padding:'8px 20px', borderRadius:30,
+              background: T.orange, border:'none',
+              display:'flex', alignItems:'center', gap:8, cursor:'pointer',
+              boxShadow:'0 2px 8px rgba(245,166,35,0.3)'
+            }}>
+            <Plus size={16} color="#fff" />
+            <span style={{ fontSize:13, color:'#fff', fontWeight:600 }}>Add Apartment</span>
+          </button>
+        </div>
+      </div>
 
-          <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-800/30 border border-blue-700/50">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Building2 size={12} className="text-blue-300" />
-              <p className="text-[10px] font-medium text-blue-300 uppercase">Current Building</p>
+      {/* Stats Cards */}
+      <div className="fade-up-2" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:20 }}>
+        <div style={{ background:T.white, borderRadius:16, padding:16, border:`1px solid ${T.border}`, boxShadow:'0 2px 8px rgba(27,43,107,0.05)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:'#EEF1FB', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Home size={18} color={T.navy} />
             </div>
-            <p className="font-bold text-white text-sm">{building?.name}</p>
-          </div>
-
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.id === 'apartments';
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    router.push(item.href);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group
-                    ${isActive 
-                      ? 'bg-orange-500/20 text-orange-400 border-l-2 border-orange-500' 
-                      : 'text-blue-200 hover:bg-blue-800/50 hover:text-white'}`}
-                >
-                  <Icon size={16} />
-                  <span className="text-xs font-medium">{item.label}</span>
-                  {isActive && <ChevronRight size={12} className="ml-auto opacity-60" />}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="p-3 border-t border-blue-800/50">
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-all">
-              <LogOut size={16} />
-              <span className="text-xs font-medium">Logout</span>
-            </button>
+            <div>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.total}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Total Apartments</p>
+            </div>
           </div>
         </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex justify-between items-center mb-6">
+        
+        <div style={{ background:T.white, borderRadius:16, padding:16, border:`1px solid ${T.border}`, boxShadow:'0 2px 8px rgba(27,43,107,0.05)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:T.greenLight, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <CheckCircle size={18} color={T.green} />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">Apartments</h1>
-              <p className="text-sm text-slate-500 mt-1">Manage apartments in {building?.name}</p>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.occupied}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Occupied</p>
             </div>
-            <button
-              onClick={() => {
-                resetForm();
-                setShowModal(true);
+          </div>
+        </div>
+        
+        <div style={{ background:T.white, borderRadius:16, padding:16, border:`1px solid ${T.border}`, boxShadow:'0 2px 8px rgba(27,43,107,0.05)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:T.orangeLight, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Home size={18} color={T.orange} />
+            </div>
+            <div>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.vacant}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Vacant</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Apartments Grid */}
+      <div className="fade-up-3" style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+        {apartments.length === 0 ? (
+          <div style={{
+            gridColumn:'span 3', background: T.white, borderRadius:18, padding:'48px 20px', textAlign:'center',
+            border:`1px solid ${T.border}`
+          }}>
+            <Home size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
+            <p style={{ margin:0, fontSize:13, color:T.textSm }}>No apartments yet</p>
+            <p style={{ margin:'4px 0 0', fontSize:11, color:T.textSm }}>Click "Add Apartment" to create one</p>
+          </div>
+        ) : (
+          apartments.map((apartment) => {
+            const statusStyle = getStatusBadge(apartment.status);
+            return (
+              <div key={apartment.id} style={{
+                background: T.white, borderRadius:16, border:`1px solid ${T.border}`,
+                overflow:'hidden', transition:'all 0.22s'
               }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition shadow-sm"
-            >
-              <Plus size={18} />
-              Add Apartment
-            </button>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Home size={18} className="text-blue-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.total}</p>
-                  <p className="text-xs text-slate-500">Total Apartments</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <CheckCircle size={18} className="text-green-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.occupied}</p>
-                  <p className="text-xs text-slate-500">Occupied</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Home size={18} className="text-amber-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.vacant}</p>
-                  <p className="text-xs text-slate-500">Vacant</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Apartments Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {apartments.length === 0 ? (
-              <div className="col-span-full bg-white rounded-xl p-12 text-center text-slate-400 border border-slate-100">
-                <Home size={48} className="mx-auto mb-3 text-slate-300" />
-                <p>No apartments yet. Click "Add Apartment" to create one.</p>
-              </div>
-            ) : (
-              apartments.map((apartment) => (
-                <div key={apartment.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition">
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Home size={16} className="text-blue-600" />
-                          <h3 className="font-semibold text-slate-800">Apartment {apartment.apartment_number}</h3>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">Floor {apartment.floor}</p>
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(27,43,107,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ padding: 16 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom: 12 }}>
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap: 8 }}>
+                        <Home size={16} color={T.teal} />
+                        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.navy }}>Apt {apartment.apartment_number}</h3>
                       </div>
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={() => editApartment(apartment)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                        >
-                          <Edit size={14} />
-                        </button>
-                        <button 
-                          onClick={() => deleteApartment(apartment.id)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+                      <p style={{ margin: '4px 0 0', fontSize: 11, color: T.textSm }}>Floor {apartment.floor}</p>
                     </div>
-
-                    <div className="space-y-2 mb-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-500">Monthly Fee:</span>
-                        <span className="text-sm font-semibold text-slate-800">{apartment.monthly_fee?.toLocaleString() || building?.monthly_fee?.toLocaleString() || 0} MAD</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-500">Status:</span>
-                        {getStatusBadge(apartment.status)}
-                      </div>
-                      {apartment.residents?.full_name && (
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-slate-500">Resident:</span>
-                          <span className="text-sm font-medium text-slate-700">{apartment.residents.full_name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {apartment.status === 'vacant' && (
+                    <div style={{ display: 'flex', gap: 4 }}>
                       <button 
-                        onClick={() => router.push(`/dashboard/residents?apartment_id=${apartment.id}`)}
-                        className="w-full mt-2 py-2 text-center text-sm text-blue-600 border-t border-slate-100 hover:bg-blue-50 transition"
+                        onClick={() => editApartment(apartment)}
+                        style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: T.textSm, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = T.surface; e.currentTarget.style.color = T.teal; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSm; }}
+                        title="Edit"
                       >
-                        + Assign Resident
+                        <Edit size={14} />
                       </button>
+                      <button 
+                        onClick={() => deleteApartment(apartment.id)}
+                        style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: T.textSm, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = T.redLight; e.currentTarget.style.color = T.red; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSm; }}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: 12, color: T.textSm }}>Monthly Fee:</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.navy }}>{(apartment.monthly_fee || building?.monthly_fee || 0).toLocaleString()} DZD</span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize: 12, color: T.textSm }}>Status:</span>
+                      <span style={{
+                        display:'inline-flex', alignItems:'center', gap: 4,
+                        padding:'4px 10px', borderRadius:20, fontSize:10, fontWeight:600,
+                        background: statusStyle.bg, color: statusStyle.text
+                      }}>
+                        {statusStyle.icon}
+                        {statusStyle.label}
+                      </span>
+                    </div>
+                    {apartment.residents?.full_name && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: `1px solid ${T.border}` }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <span style={{ fontSize: 11, color: T.textSm }}>Resident:</span>
+                          <span style={{ fontSize: 12, fontWeight: 500, color: T.text }}>{apartment.residents.full_name}</span>
+                        </div>
+                      </div>
                     )}
                   </div>
+
+                  {apartment.status === 'vacant' && (
+                    <button 
+                      onClick={() => router.push(`/dashboard/residents?apartment_id=${apartment.id}`)}
+                      style={{
+                        width: '100%', marginTop: 8, padding: '6px 12px',
+                        background: T.tealLight, border: 'none', borderRadius: 8,
+                        fontSize: 11, fontWeight: 600, color: T.teal, cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = T.teal + '20'}
+                      onMouseLeave={e => e.currentTarget.style.background = T.tealLight}
+                    >
+                      + Assign Resident
+                    </button>
+                  )}
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </main>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       {/* Add/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+        <div style={{ position:'fixed', inset:0, background:'rgba(15,26,62,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:16 }}>
+          <div style={{ background:T.white, borderRadius:20, maxWidth:450, width:'100%' }}>
+            <div style={{ padding:'20px 24px', borderBottom:`1px solid ${T.border}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
-                <h2 className="text-lg font-bold text-slate-800">
+                <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:T.navy }}>
                   {editingApartment ? 'Edit Apartment' : 'Add New Apartment'}
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
+                </h3>
+                <p style={{ margin:'4px 0 0', fontSize:11, color:T.textSm }}>
                   {editingApartment ? 'Update apartment information' : 'Create a new apartment unit'}
                 </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X size={18} />
+              <button onClick={() => setShowModal(false)} style={{ padding:6, borderRadius:8, background:'transparent', border:'none', cursor:'pointer' }}>
+                <X size={18} color={T.textSm} />
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Apartment Number *</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Apartment Number *</label>
                 <input
                   type="text"
                   value={formData.apartment_number}
                   onChange={(e) => setFormData({ ...formData, apartment_number: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., 101, A101, 1A"
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit' }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Floor</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Floor</label>
                 <input
                   type="number"
                   value={formData.floor}
                   onChange={(e) => setFormData({ ...formData, floor: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg"
                   placeholder="1"
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit' }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Fee (MAD)</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Monthly Fee (DZD)</label>
                 <input
                   type="number"
                   value={formData.monthly_fee}
                   onChange={(e) => setFormData({ ...formData, monthly_fee: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg"
-                  placeholder={building?.monthly_fee?.toString() || '500'}
+                  placeholder={building?.monthly_fee?.toString() || '5000'}
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit' }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
-                <p className="text-xs text-slate-400 mt-1">Leave empty to use building default ({building?.monthly_fee || 500} MAD)</p>
+                <p style={{ fontSize:10, color: T.textSm, marginTop:4 }}>Leave empty to use building default ({building?.monthly_fee?.toLocaleString() || 5000} DZD)</p>
               </div>
               {editingApartment && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                  <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Status</label>
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
+                    style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit', background:T.white }}
+                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                    onBlur={e => e.currentTarget.style.borderColor = T.border}
                   >
                     <option value="vacant">Vacant</option>
                     <option value="occupied">Occupied</option>
@@ -483,15 +467,45 @@ export default function ApartmentsManagement() {
                 </div>
               )}
             </div>
-            <div className="p-5 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button onClick={handleSubmit} className="flex-1 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition">
-                {editingApartment ? 'Update Apartment' : 'Create Apartment'}
-              </button>
+            <div style={{ padding:'16px 24px', borderTop:`1px solid ${T.border}`, display:'flex', gap:12 }}>
+              <button onClick={() => setShowModal(false)} style={{ flex:1, padding:'10px', background:'transparent', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, fontWeight:600, color:T.textMd, cursor:'pointer' }}>Cancel</button>
+              <button onClick={handleSubmit} style={{ flex:1, padding:'10px', background:T.navy, border:'none', borderRadius:10, fontSize:13, fontWeight:600, color:'#fff', cursor:'pointer' }}>{editingApartment ? 'Update Apartment' : 'Create Apartment'}</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      <style>{`
+        .fade-up {
+          animation: fadeUp 0.5s ease both;
+        }
+        .fade-up-2 {
+          animation: fadeUp 0.5s 0.08s ease both;
+        }
+        .fade-up-3 {
+          animation: fadeUp 0.5s 0.16s ease both;
+        }
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+        @media (max-width: 1024px) {
+          .fade-up-3[style*="grid-template-columns"] {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+        @media (max-width: 768px) {
+          .fade-up-3[style*="grid-template-columns"] {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
+    </Layout>
   );
 }

@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { signOut } from '../../lib/auth';
+import Layout from '../../components/Layout';
+import { T } from '../../styles/theme';
 import { 
-  Wrench, AlertCircle, CheckCircle, Clock, 
-  MessageSquare, Flame, Shield, Zap,
-  Calendar, User, Home, Building2, Users, CreditCard, Megaphone, QrCode,
-  LogOut, Menu, X, ChevronRight, Sparkles, Info
+  Wrench, CheckCircle, Clock, AlertCircle, Flame, Shield, Zap,
+  User, Home, Phone, Mail, MessageSquare, Send, X
 } from 'lucide-react';
 
-// Define the type for a single maintenance request
 interface MaintenanceRequest {
   id: string;
   title: string;
@@ -17,46 +15,43 @@ interface MaintenanceRequest {
   priority: string;
   status: string;
   created_at: string;
-  residents?: {
-    full_name: string;
-    apartment_number: string;
-  };
+  resident_name?: string;
+  apartment_number?: string;
+  resident_phone?: string;
+  resident_email?: string;
 }
 
-interface Building {
+interface RequestNote {
   id: string;
-  name: string;
-  city: string;
+  message: string;
+  sender_type: string;
+  created_at: string;
 }
 
 export default function MaintenanceManagement() {
   const router = useRouter();
-  const [building, setBuilding] = useState<Building | null>(null);
+  const [building, setBuilding] = useState<any>(null);
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showMessageModal, setShowMessageModal] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<MaintenanceRequest | null>(null);
-  const [messageText, setMessageText] = useState('');
+  const [notes, setNotes] = useState<RequestNote[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    fetchBuildingAndRequests();
   }, []);
 
-  const fetchData = async () => {
+  const fetchBuildingAndRequests = async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     
     if (user) {
-      const { data: buildingData, error: buildingError } = await supabase
+      const { data: buildingData } = await supabase
         .from('buildings')
         .select('*')
         .eq('syndic_id', user.id)
         .single();
-      
-      if (buildingError) {
-        console.error('Error fetching building:', buildingError);
-      }
       
       if (buildingData) {
         setBuilding(buildingData);
@@ -67,82 +62,99 @@ export default function MaintenanceManagement() {
   };
 
   const fetchRequests = async (buildingId: string) => {
-    // 1. Fetch all maintenance requests for this building
-    const { data: requestsData, error: requestsError } = await supabase
-      .from('maintenance_requests')
-      .select('*')
-      .eq('building_id', buildingId)
-      .order('created_at', { ascending: false });
-    
-    if (requestsError) {
-      console.error('Error fetching requests:', requestsError);
-      setRequests([]);
-      return;
-    }
-    
-    if (!requestsData || requestsData.length === 0) {
-      setRequests([]);
-      return;
-    }
-    
-    // 2. Get all unique resident IDs from the requests
-    const residentIds = [...new Set(requestsData.map(r => r.resident_id).filter(Boolean))];
-    
-    if (residentIds.length === 0) {
-      // No residents linked, just set the requests without resident info
-      const simpleRequests: MaintenanceRequest[] = requestsData.map(r => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        priority: r.priority,
-        status: r.status,
-        created_at: r.created_at,
-      }));
-      setRequests(simpleRequests);
-      return;
-    }
-    
-    // 3. Fetch the resident details separately
-    const { data: residentsData, error: residentsError } = await supabase
-      .from('residents')
-      .select('id, full_name, apartment_number')
-      .in('id', residentIds);
-    
-    if (residentsError) {
-      console.error('Error fetching residents:', residentsError);
-      const simpleRequests: MaintenanceRequest[] = requestsData.map(r => ({
-        id: r.id,
-        title: r.title,
-        description: r.description,
-        priority: r.priority,
-        status: r.status,
-        created_at: r.created_at,
-      }));
-      setRequests(simpleRequests);
-      return;
-    }
-    
-    // 4. Create a map for quick resident lookup
-    const residentMap = new Map();
-    residentsData?.forEach(res => {
-      residentMap.set(res.id, {
-        full_name: res.full_name,
-        apartment_number: res.apartment_number
+    try {
+      // First get all residents in this building with their apartment info
+      const { data: residents, error: residentsError } = await supabase
+        .from('residents')
+        .select(`
+          id,
+          full_name,
+          phone,
+          email,
+          apartments (
+            apartment_number,
+            floor
+          )
+        `)
+        .eq('building_id', buildingId);
+
+      if (residentsError) {
+        console.error('Error fetching residents:', residentsError);
+        setRequests([]);
+        return;
+      }
+
+      if (!residents || residents.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Create a map of resident_id to resident info
+      const residentMap = new Map();
+      residents.forEach((resident: any) => {
+        const apartment = resident.apartments as any;
+        residentMap.set(resident.id, {
+          name: resident.full_name,
+          apartment: apartment?.apartment_number || '?',
+          phone: resident.phone,
+          email: resident.email
+        });
       });
-    });
-    
-    // 5. Merge the data
-    const mergedRequests: MaintenanceRequest[] = requestsData.map(request => ({
-      id: request.id,
-      title: request.title,
-      description: request.description,
-      priority: request.priority,
-      status: request.status,
-      created_at: request.created_at,
-      residents: residentMap.get(request.resident_id)
-    }));
-    
-    setRequests(mergedRequests);
+
+      // Get all maintenance requests for this building
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('maintenance_requests')
+        .select('*')
+        .eq('building_id', buildingId)
+        .order('created_at', { ascending: false });
+
+      if (requestsError) {
+        console.error('Error fetching requests:', requestsError);
+        setRequests([]);
+        return;
+      }
+
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+
+      // Merge requests with resident info
+      const mergedRequests = requestsData.map((req: any) => {
+        const resident = residentMap.get(req.resident_id);
+        return {
+          id: req.id,
+          title: req.title,
+          description: req.description,
+          priority: req.priority,
+          status: req.status,
+          created_at: req.created_at,
+          resident_name: resident?.name || 'Unknown Resident',
+          apartment_number: resident?.apartment || '?',
+          resident_phone: resident?.phone,
+          resident_email: resident?.email
+        };
+      });
+
+      setRequests(mergedRequests);
+    } catch (err) {
+      console.error('Error:', err);
+      setRequests([]);
+    }
+  };
+
+  const fetchNotes = async (requestId: string) => {
+    const { data, error } = await supabase
+      .from('maintenance_notes')
+      .select('*')
+      .eq('request_id', requestId)
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      setNotes(data);
+    } else {
+      setNotes([]);
+    }
   };
 
   const updateStatus = async (requestId: string, status: string) => {
@@ -162,48 +174,62 @@ export default function MaintenanceManagement() {
       if (building) {
         await fetchRequests(building.id);
       }
+      if (selectedRequest && selectedRequest.id === requestId) {
+        setSelectedRequest({ ...selectedRequest, status });
+      }
       alert(`Request marked as ${status}!`);
     }
   };
 
   const sendMessage = async () => {
-    if (!messageText || !selectedRequest) return;
-    // Here you would integrate with WhatsApp, Email, or Supabase notifications
-    alert(`Message sent to resident about "${selectedRequest.title}": ${messageText}`);
-    setShowMessageModal(false);
-    setMessageText('');
-    setSelectedRequest(null);
+    if (!newMessage.trim() || !selectedRequest) return;
+    
+    setSending(true);
+    const { error } = await supabase
+      .from('maintenance_notes')
+      .insert([{
+        request_id: selectedRequest.id,
+        message: newMessage,
+        sender_type: 'syndic'
+      }]);
+
+    if (error) {
+      alert('Error sending message: ' + error.message);
+    } else {
+      setNewMessage('');
+      await fetchNotes(selectedRequest.id);
+    }
+    setSending(false);
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
+  const openRequestDetails = async (request: MaintenanceRequest) => {
+    setSelectedRequest(request);
+    await fetchNotes(request.id);
   };
 
   const getPriorityIcon = (priority: string) => {
     switch(priority) {
-      case 'emergency': return <Flame size={14} className="text-red-500" />;
-      case 'high': return <AlertCircle size={14} className="text-orange-500" />;
-      case 'medium': return <Clock size={14} className="text-yellow-500" />;
-      default: return <Shield size={14} className="text-blue-500" />;
+      case 'emergency': return <Flame size={14} color="#EF4444" />;
+      case 'high': return <AlertCircle size={14} color="#F97316" />;
+      case 'medium': return <Clock size={14} color="#EAB308" />;
+      default: return <Shield size={14} color="#3B82F6" />;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityStyle = (priority: string) => {
     switch(priority) {
-      case 'emergency': return 'bg-red-100 text-red-700 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-700 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      default: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'emergency': return { bg: '#FEE2E2', text: '#DC2626' };
+      case 'high': return { bg: '#FFEDD5', text: '#EA580C' };
+      case 'medium': return { bg: '#FEF9C3', text: '#CA8A04' };
+      default: return { bg: '#E0F2FE', text: '#0284C7' };
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'completed': return 'bg-green-100 text-green-700';
-      case 'in_progress': return 'bg-blue-100 text-blue-700';
-      case 'cancelled': return 'bg-red-100 text-red-700';
-      default: return 'bg-amber-100 text-amber-700';
+      case 'completed': return { bg: '#D1FAE5', text: '#059669', label: 'Completed' };
+      case 'in_progress': return { bg: '#DBEAFE', text: '#2563EB', label: 'In Progress' };
+      default: return { bg: '#FEF3C7', text: '#D97706', label: 'Pending' };
     }
   };
 
@@ -214,268 +240,272 @@ export default function MaintenanceManagement() {
     completed: requests.filter(r => r.status === 'completed').length
   };
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-    { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
-    { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
-    { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
-    { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
-  ];
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+      <div style={{ minHeight:'100vh', background: T.navy, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', border:`3px solid ${T.orange}`, borderTopColor:'transparent', animation:'spin 0.75s linear infinite' }} />
+        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>Loading SYNDIX…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Mobile Menu Button */}
-      <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md">
-        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-gradient-to-b from-blue-900 to-blue-950 shadow-2xl transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        
-        <div className="flex flex-col h-full">
-          <div className="p-5 border-b border-blue-800/50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
-                <Sparkles size={18} className="text-white" />
-              </div>
-              <div>
-                <p className="text-lg font-black text-white tracking-tight">SYNDIX</p>
-                <p className="text-[8px] font-semibold text-orange-400 tracking-wider uppercase">Maintenance</p>
-              </div>
+    <Layout title="Maintenance Requests" subtitle="Manage resident maintenance tickets">
+      {/* Hero Section */}
+      <div className="fade-up" style={{
+        marginBottom:24, borderRadius:20, padding:'26px 30px',
+        background: `linear-gradient(130deg, ${T.navyDeep} 0%, ${T.navy} 55%, #1A4D7C 100%)`,
+        position:'relative', overflow:'hidden',
+      }}>
+        <div style={{ position:'absolute', right:-40, top:-40, width:220, height:220, borderRadius:'50%', background:`radial-gradient(circle, ${T.teal}20 0%, transparent 70%)`, pointerEvents:'none' }} />
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:`linear-gradient(90deg, transparent, ${T.orange}, ${T.teal}, transparent)` }} />
+        <div style={{ position:'relative', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div style={{ width:7, height:7, borderRadius:'50%', background:T.green }} />
+              <span style={{ fontSize:10, color:'rgba(255,255,255,0.45)', letterSpacing:2, fontWeight:600, textTransform:'uppercase' }}>Maintenance Dashboard</span>
             </div>
+            <h2 style={{ margin:'0 0 6px', fontSize:24, fontWeight:800, color:'#fff', letterSpacing:'-0.5px' }}>
+              Service Requests 🔧
+            </h2>
+            <p style={{ margin:0, fontSize:13, color:'rgba(255,255,255,0.45)' }}>
+              {building?.name} · {stats.pending} pending requests
+            </p>
           </div>
-
-          <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-800/30 border border-blue-700/50">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Building2 size={12} className="text-blue-300" />
-              <p className="text-[10px] font-medium text-blue-300 uppercase">Current Building</p>
+          <div style={{ display:'flex', gap:8 }}>
+            <div style={{
+              padding:'8px 16px', borderRadius:30,
+              background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)',
+              display:'flex', alignItems:'center', gap:8,
+            }}>
+              <Wrench size={13} color={T.teal} />
+              <span style={{ fontSize:12, color:'rgba(255,255,255,0.7)', fontWeight:600 }}>{stats.total} Total</span>
             </div>
-            <p className="font-bold text-white text-sm">{building?.name}</p>
-            <p className="text-[10px] text-blue-300 mt-1">{building?.city}</p>
-          </div>
-
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.id === 'maintenance';
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    router.push(item.href);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group
-                    ${isActive 
-                      ? 'bg-orange-500/20 text-orange-400 border-l-2 border-orange-500' 
-                      : 'text-blue-200 hover:bg-blue-800/50 hover:text-white'}`}
-                >
-                  <Icon size={16} />
-                  <span className="text-xs font-medium">{item.label}</span>
-                  {isActive && <ChevronRight size={12} className="ml-auto opacity-60" />}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="p-3 border-t border-blue-800/50">
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-all">
-              <LogOut size={16} />
-              <span className="text-xs font-medium">Logout</span>
-            </button>
           </div>
         </div>
-      </aside>
+      </div>
 
-      {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen">
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">Maintenance Requests</h1>
-            <p className="text-sm text-slate-500 mt-1">View and manage resident maintenance tickets</p>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Wrench size={18} className="text-blue-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.total}</p>
-                  <p className="text-xs text-slate-500">Total Requests</p>
-                </div>
-              </div>
+      {/* Stats Cards */}
+      <div className="fade-up-2" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+        <div style={{ background:T.white, borderRadius:16, padding:18, border:`1px solid ${T.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'#EEF1FB', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Wrench size={17} color={T.navy} />
             </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                  <Clock size={18} className="text-amber-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.pending}</p>
-                  <p className="text-xs text-slate-500">Pending</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <Zap size={18} className="text-purple-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.inProgress}</p>
-                  <p className="text-xs text-slate-500">In Progress</p>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                  <CheckCircle size={18} className="text-green-700" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold text-slate-800">{stats.completed}</p>
-                  <p className="text-xs text-slate-500">Completed</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Info Banner */}
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-3">
-            <Info size={18} className="text-blue-600" />
             <div>
-              <p className="text-sm font-medium text-blue-800">Maintenance requests from residents</p>
-              <p className="text-xs text-blue-600">Click Start Work or Mark Complete to update status</p>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.total}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Total Requests</p>
             </div>
           </div>
+        </div>
+        <div style={{ background:T.white, borderRadius:16, padding:18, border:`1px solid ${T.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:T.orangeLight, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Clock size={17} color={T.orange} />
+            </div>
+            <div>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.pending}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Pending</p>
+            </div>
+          </div>
+        </div>
+        <div style={{ background:T.white, borderRadius:16, padding:18, border:`1px solid ${T.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:'#F3E8FF', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <Zap size={17} color="#9333EA" />
+            </div>
+            <div>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.inProgress}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>In Progress</p>
+            </div>
+          </div>
+        </div>
+        <div style={{ background:T.white, borderRadius:16, padding:18, border:`1px solid ${T.border}` }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ width:38, height:38, borderRadius:10, background:T.greenLight, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <CheckCircle size={17} color={T.green} />
+            </div>
+            <div>
+              <p style={{ margin:0, fontSize:22, fontWeight:800, color:T.navy }}>{stats.completed}</p>
+              <p style={{ margin:0, fontSize:11, color:T.textSm }}>Completed</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* Requests Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {requests.length === 0 ? (
-              <div className="lg:col-span-2 bg-white rounded-xl p-12 text-center text-slate-400 border border-slate-100">
-                <Wrench size={48} className="mx-auto mb-3 text-slate-300" />
-                <p>No maintenance requests yet.</p>
-                <p className="text-xs mt-1">Residents will submit requests from their portal.</p>
-              </div>
-            ) : (
-              requests.map((req) => {
-                const isPending = req.status === 'pending';
-                const isInProgress = req.status === 'in_progress';
-                const priorityClass = getPriorityColor(req.priority);
-                const statusClass = getStatusBadge(req.status);
-                
-                return (
-                  <div key={req.id} className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition">
-                    <div className="p-5">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center gap-2">
-                          <div className={`p-2 rounded-lg ${priorityClass}`}>
-                            {getPriorityIcon(req.priority)}
-                          </div>
-                          <h3 className="font-semibold text-slate-800">{req.title}</h3>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusClass}`}>
-                          {req.status === 'in_progress' ? 'In Progress' : req.status}
-                        </span>
+      {/* Requests Grid */}
+      <div className="fade-up-3" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:18 }}>
+        {requests.length === 0 ? (
+          <div style={{ gridColumn:'span 2', background:T.white, borderRadius:18, padding:'48px 20px', textAlign:'center', border:`1px solid ${T.border}` }}>
+            <Wrench size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
+            <p style={{ margin:0, fontSize:13, color:T.textSm }}>No maintenance requests yet</p>
+          </div>
+        ) : (
+          requests.map((req) => {
+            const priorityStyle = getPriorityStyle(req.priority);
+            const statusStyle = getStatusBadge(req.status);
+            
+            return (
+              <div key={req.id} style={{
+                background:T.white, borderRadius:18, border:`1px solid ${T.border}`,
+                overflow:'hidden', cursor:'pointer', transition:'all 0.22s'
+              }}
+              onClick={() => openRequestDetails(req)}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(27,43,107,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+                <div style={{ padding:20 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <div style={{ padding:6, borderRadius:8, background:priorityStyle.bg, display:'flex', alignItems:'center', gap:6 }}>
+                        {getPriorityIcon(req.priority)}
+                        <span style={{ fontSize:11, fontWeight:600, color:priorityStyle.text, textTransform:'capitalize' }}>{req.priority}</span>
                       </div>
-                      
-                      <p className="text-slate-600 text-sm mb-4">{req.description}</p>
-                      
-                      <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-                        <span className="flex items-center gap-1">
-                          <User size={12} />
-                          {req.residents?.full_name || 'Unknown'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Home size={12} />
-                          Apt {req.residents?.apartment_number || '?'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Calendar size={12} />
-                          {new Date(req.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      
-                      <div className="flex gap-2">
-                        {isPending && (
-                          <button
-                            onClick={() => updateStatus(req.id, 'in_progress')}
-                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 transition"
-                          >
-                            Start Work
-                          </button>
-                        )}
-                        {isInProgress && (
-                          <button
-                            onClick={() => updateStatus(req.id, 'completed')}
-                            className="flex-1 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 transition"
-                          >
-                            Mark Complete
-                          </button>
-                        )}
-                        <button 
-                          onClick={() => {
-                            setSelectedRequest(req);
-                            setShowMessageModal(true);
-                          }}
-                          className="px-4 py-2 border border-slate-200 rounded-lg text-sm flex items-center gap-1 hover:bg-slate-50 transition"
-                        >
-                          <MessageSquare size={14} /> Message
-                        </button>
-                      </div>
+                      <span style={{ padding:'4px 10px', borderRadius:20, fontSize:10, fontWeight:600, background:statusStyle.bg, color:statusStyle.text }}>
+                        {statusStyle.label}
+                      </span>
                     </div>
                   </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-      </main>
-
-      {/* Message Modal */}
-      {showMessageModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
-              <div>
-                <h2 className="text-lg font-bold text-slate-800">Message Resident</h2>
-                <p className="text-xs text-slate-500 mt-1">Send update about: {selectedRequest.title}</p>
+                  
+                  <h3 style={{ margin:'0 0 8px', fontSize:16, fontWeight:700, color:T.navy }}>{req.title}</h3>
+                  <p style={{ margin:'0 0 12px', fontSize:13, color:T.textMd, lineHeight:1.5 }}>{req.description.substring(0, 100)}...</p>
+                  
+                  {/* Resident Info - NOW SHOWING CORRECTLY */}
+                  <div style={{
+                    background: T.surface,
+                    borderRadius: 12,
+                    padding: 12,
+                    marginBottom: 12
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <User size={14} color={T.teal} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.navy }}>{req.resident_name}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Home size={14} color={T.orange} />
+                      <span style={{ fontSize: 12, color: T.textMd }}>Apartment {req.apartment_number}</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:11, color:T.textSm }}>
+                    <span>{new Date(req.created_at).toLocaleDateString()}</span>
+                    <span style={{ color: T.teal }}>Click for details →</span>
+                  </div>
+                </div>
               </div>
-              <button onClick={() => setShowMessageModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X size={18} />
+            );
+          })
+        )}
+      </div>
+
+      {/* Request Details Modal */}
+      {selectedRequest && (
+        <>
+          <div style={{ position:'fixed', inset:0, background:'rgba(5,15,36,0.5)', zIndex:90, backdropFilter:'blur(4px)' }} onClick={() => setSelectedRequest(null)} />
+          <div style={{
+            position:'fixed', bottom:0, left:0, right:0, background:T.white,
+            borderTopLeftRadius:28, borderTopRightRadius:28, zIndex:100,
+            padding:24, maxHeight:'85vh', overflowY:'auto',
+            boxShadow:'0 -4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <div>
+                <h3 style={{ margin:0, fontSize:20, fontWeight:800, color:T.navy }}>{selectedRequest.title}</h3>
+                <p style={{ margin:'4px 0 0', fontSize:12, color:T.textSm }}>Request ID: {selectedRequest.id.slice(0,8)}</p>
+              </div>
+              <button onClick={() => setSelectedRequest(null)} style={{ padding:8, background:T.surface, border:'none', borderRadius:10, cursor:'pointer' }}>
+                <X size={18} color={T.textMd} />
               </button>
             </div>
-            <div className="p-5">
-              <textarea
-                rows={4}
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="Type your message here..."
-              />
-              <p className="text-xs text-slate-400 mt-2">This message will be sent to the resident's dashboard.</p>
+
+            {/* Resident Info Section */}
+            <div style={{ background:T.surface, borderRadius:16, padding:16, marginBottom:20 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+                <User size={18} color={T.navy} />
+                <span style={{ fontWeight:700, color:T.navy }}>Resident Information</span>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <User size={14} color={T.textSm} />
+                  <span style={{ fontSize:13, color:T.text }}>{selectedRequest.resident_name}</span>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <Home size={14} color={T.textSm} />
+                  <span style={{ fontSize:13, color:T.text }}>Apartment {selectedRequest.apartment_number}</span>
+                </div>
+                {selectedRequest.resident_phone && (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <Phone size={14} color={T.textSm} />
+                    <span style={{ fontSize:13, color:T.text }}>{selectedRequest.resident_phone}</span>
+                  </div>
+                )}
+                {selectedRequest.resident_email && (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <Mail size={14} color={T.textSm} />
+                    <span style={{ fontSize:13, color:T.text }}>{selectedRequest.resident_email}</span>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="p-5 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowMessageModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button onClick={sendMessage} className="flex-1 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition">Send Message</button>
+
+            {/* Request Details */}
+            <div style={{ marginBottom:20 }}>
+              <p style={{ margin:0, fontSize:13, color:T.text, lineHeight:1.5 }}>{selectedRequest.description}</p>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:12 }}>
+                <Clock size={12} color={T.textSm} />
+                <span style={{ fontSize:11, color:T.textSm }}>Submitted: {new Date(selectedRequest.created_at).toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Status Update Buttons */}
+            <div style={{ display:'flex', gap:10, marginBottom:20 }}>
+              {selectedRequest.status === 'pending' && (
+                <button onClick={() => updateStatus(selectedRequest.id, 'in_progress')} style={{ flex:1, padding:'12px', background:T.navy, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>Start Work</button>
+              )}
+              {selectedRequest.status === 'in_progress' && (
+                <button onClick={() => updateStatus(selectedRequest.id, 'completed')} style={{ flex:1, padding:'12px', background:T.green, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>Mark Complete</button>
+              )}
+            </div>
+
+            {/* Messages Section */}
+            {notes.length > 0 && (
+              <div style={{ marginBottom:20 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
+                  <MessageSquare size={14} color={T.teal} />
+                  <h4 style={{ margin:0, fontSize:14, fontWeight:600, color:T.navy }}>Messages</h4>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  {notes.map((note) => (
+                    <div key={note.id} style={{
+                      background: note.sender_type === 'syndic' ? T.tealLight : T.surface,
+                      borderRadius:12, padding:10,
+                      marginLeft: note.sender_type === 'syndic' ? 0 : 20,
+                      marginRight: note.sender_type === 'syndic' ? 20 : 0
+                    }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:4 }}>
+                        <span style={{ fontSize:10, fontWeight:600, color: note.sender_type === 'syndic' ? T.teal : T.orange }}>
+                          {note.sender_type === 'syndic' ? 'Syndic' : 'Resident'}
+                        </span>
+                        <span style={{ fontSize:9, color:T.textSm }}>{new Date(note.created_at).toLocaleString()}</span>
+                      </div>
+                      <p style={{ margin:0, fontSize:12, color:T.text }}>{note.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Send Message */}
+            <div>
+              <label style={{ display:'block', fontSize:13, fontWeight:600, color:T.textMd, marginBottom:8 }}>Send message to resident</label>
+              <div style={{ display:'flex', gap:10 }}>
+                <textarea rows={2} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message..." style={{ flex:1, padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:12, fontSize:13, fontFamily:'inherit', outline:'none', resize:'vertical' }} onFocus={e => e.currentTarget.style.borderColor = T.teal} onBlur={e => e.currentTarget.style.borderColor = T.border} />
+                <button onClick={sendMessage} disabled={!newMessage.trim() || sending} style={{ width:44, height:44, borderRadius:12, background: newMessage.trim() ? T.orange : T.textSm, border:'none', cursor: newMessage.trim() ? 'pointer' : 'not-allowed', display:'flex', alignItems:'center', justifyContent:'center' }}><Send size={18} color="#fff" /></button>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
-    </div>
+    </Layout>
   );
 }

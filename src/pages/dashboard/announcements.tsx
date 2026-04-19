@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { signOut } from '../../lib/auth';
+import Layout from '../../components/Layout';
+import { T } from '../../styles/theme';
+
 import { 
   Megaphone, Plus, Pin, Bell, Trash2, Send, 
   AlertCircle, CheckCircle, Clock, Star, Eye,
-  Home, Users, Building2, Wrench, CreditCard, QrCode,
-  LogOut, Menu, X, ChevronRight, Sparkles
+  X
 } from 'lucide-react';
+
 
 interface Announcement {
   id: string;
@@ -29,7 +31,6 @@ export default function Announcements() {
   const [building, setBuilding] = useState<Building | null>(null);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -119,262 +120,286 @@ export default function Announcements() {
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    router.push('/login');
-  };
-
   const getPriorityIcon = (priority: string) => {
     switch(priority) {
-      case 'urgent': return <AlertCircle size={14} className="text-red-500" />;
-      case 'important': return <Star size={14} className="text-orange-500" />;
-      default: return <Bell size={14} className="text-blue-500" />;
+      case 'urgent': return <AlertCircle size={14} color={T.red} />;
+      case 'important': return <Star size={14} color={T.orange} />;
+      default: return <Bell size={14} color={T.teal} />;
     }
   };
 
-  const getPriorityBadge = (priority: string) => {
+  const getPriorityStyle = (priority: string) => {
     switch(priority) {
-      case 'urgent': return 'bg-red-100 text-red-700 border-red-200';
-      case 'important': return 'bg-orange-100 text-orange-700 border-orange-200';
-      default: return 'bg-blue-100 text-blue-700 border-blue-200';
+      case 'urgent': return { bg: T.redLight, text: T.red, border: `${T.red}30` };
+      case 'important': return { bg: T.orangeLight, text: T.orangeDeep, border: `${T.orange}30` };
+      default: return { bg: T.tealLight, text: T.teal, border: `${T.teal}30` };
     }
   };
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: Home, href: '/dashboard' },
-    { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
-    { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
-    { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
-    { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
-    { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
-  ];
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+      <div style={{ minHeight:'100vh', background: T.navy, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', border:`3px solid ${T.orange}`, borderTopColor:'transparent', animation:'spin 0.75s linear infinite' }} />
+        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13, fontFamily:'system-ui', margin:0 }}>Loading SYNDIX…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Mobile Menu Button */}
-      <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md">
-        {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
-      </button>
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 w-64 h-screen bg-gradient-to-b from-blue-900 to-blue-950 shadow-2xl transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        
-        <div className="flex flex-col h-full">
-          <div className="p-5 border-b border-blue-800/50">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg">
-                <Sparkles size={18} className="text-white" />
-              </div>
-              <div>
-                <p className="text-lg font-black text-white tracking-tight">SYNDIX</p>
-                <p className="text-[8px] font-semibold text-orange-400 tracking-wider uppercase">Announcements</p>
-              </div>
+    <Layout title="Announcements" subtitle="Keep residents informed with important updates">
+      {/* Hero Section */}
+      <div className="fade-up" style={{
+        marginBottom:24, borderRadius:20, padding:'26px 30px',
+        background: `linear-gradient(130deg, ${T.navyDeep} 0%, ${T.navy} 55%, #1A4D7C 100%)`,
+        position:'relative', overflow:'hidden',
+      }}>
+        <div style={{ position:'absolute', right:-40, top:-40, width:220, height:220, borderRadius:'50%', background:`radial-gradient(circle, ${T.teal}20 0%, transparent 70%)`, pointerEvents:'none' }} />
+        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:`linear-gradient(90deg, transparent, ${T.orange}, ${T.teal}, transparent)` }} />
+        <div style={{ position:'relative', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+              <div style={{ width:7, height:7, borderRadius:'50%', background:T.green }} />
+              <span style={{ fontSize:10, color:'rgba(255,255,255,0.45)', letterSpacing:2, fontWeight:600, textTransform:'uppercase' }}>Communication Hub</span>
             </div>
+            <h2 style={{ margin:'0 0 6px', fontSize:24, fontWeight:800, color:'#fff', letterSpacing:'-0.5px' }}>
+              Announcements 📢
+            </h2>
+            <p style={{ margin:0, fontSize:13, color:'rgba(255,255,255,0.45)' }}>
+              {building?.name} · {announcements.length} announcements total
+            </p>
           </div>
+          <button
+            onClick={() => setShowModal(true)}
+            style={{
+              padding:'8px 20px', borderRadius:30,
+              background: T.orange, border:'none',
+              display:'flex', alignItems:'center', gap:8, cursor:'pointer',
+              boxShadow:'0 2px 8px rgba(245,166,35,0.3)'
+            }}>
+            <Plus size={16} color="#fff" />
+            <span style={{ fontSize:13, color:'#fff', fontWeight:600 }}>New Announcement</span>
+          </button>
+        </div>
+      </div>
 
-          <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-800/30 border border-blue-700/50">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Building2 size={12} className="text-blue-300" />
-              <p className="text-[10px] font-medium text-blue-300 uppercase">Current Building</p>
-            </div>
-            <p className="font-bold text-white text-sm">{building?.name}</p>
-            <p className="text-[10px] text-blue-300 mt-1">{building?.city}</p>
+      {/* Stats Bar */}
+      <div className="fade-up-2" style={{
+        background:T.white, borderRadius:12, padding:'12px 20px', marginBottom:20,
+        border:`1px solid ${T.border}`, display:'flex', alignItems:'center', justifyContent:'space-between'
+      }}>
+        <div style={{ display:'flex', alignItems:'center', gap:24 }}>
+          <div>
+            <span style={{ fontSize:11, color:T.textSm }}>Total Posts</span>
+            <p style={{ margin:0, fontSize:20, fontWeight:700, color:T.navy }}>{announcements.length}</p>
           </div>
-
-          <nav className="flex-1 px-3 py-4 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.id === 'announcements';
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    router.push(item.href);
-                    setSidebarOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group
-                    ${isActive 
-                      ? 'bg-orange-500/20 text-orange-400 border-l-2 border-orange-500' 
-                      : 'text-blue-200 hover:bg-blue-800/50 hover:text-white'}`}
-                >
-                  <Icon size={16} />
-                  <span className="text-xs font-medium">{item.label}</span>
-                  {isActive && <ChevronRight size={12} className="ml-auto opacity-60" />}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="p-3 border-t border-blue-800/50">
-            <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-all">
-              <LogOut size={16} />
-              <span className="text-xs font-medium">Logout</span>
-            </button>
+          <div style={{ width:1, height:30, background:T.border }} />
+          <div>
+            <span style={{ fontSize:11, color:T.textSm }}>Pinned</span>
+            <p style={{ margin:0, fontSize:20, fontWeight:700, color:T.navy }}>{announcements.filter(a => a.is_pinned).length}</p>
+          </div>
+          <div style={{ width:1, height:30, background:T.border }} />
+          <div>
+            <span style={{ fontSize:11, color:T.textSm }}>Urgent</span>
+            <p style={{ margin:0, fontSize:20, fontWeight:700, color:T.red }}>{announcements.filter(a => a.priority === 'urgent').length}</p>
           </div>
         </div>
-      </aside>
+        <div style={{ display:'flex', gap:8 }}>
+          <div style={{ width:8, height:8, borderRadius:'50%', background:T.green }} />
+          <span style={{ fontSize:11, color:T.textMd }}>All residents notified</span>
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <main className="lg:ml-64 min-h-screen">
-        <div className="p-6">
-          {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-2xl font-bold text-slate-800">Announcements</h1>
-            <p className="text-sm text-slate-500 mt-1">Keep residents informed with important updates</p>
+      {/* Announcements List */}
+      <div className="fade-up-3" style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        {announcements.length === 0 ? (
+          <div style={{
+            background: T.white, borderRadius:18, padding:'48px 20px', textAlign:'center',
+            border:`1px solid ${T.border}`
+          }}>
+            <Megaphone size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
+            <p style={{ margin:0, fontSize:13, color:T.textSm }}>No announcements yet</p>
+            <p style={{ margin:'4px 0 0', fontSize:11, color:T.textSm }}>Click "New Announcement" to create one</p>
           </div>
-
-          {/* Action Button */}
-          <div className="mb-6 flex justify-end">
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition shadow-sm"
-            >
-              <Plus size={18} />
-              New Announcement
-            </button>
-          </div>
-
-          {/* Announcements List */}
-          <div className="space-y-4">
-            {announcements.length === 0 ? (
-              <div className="bg-white rounded-xl p-12 text-center text-slate-400 border border-slate-100">
-                <Megaphone size={48} className="mx-auto mb-3 text-slate-300" />
-                <p>No announcements yet. Click "New Announcement" to create one.</p>
-              </div>
-            ) : (
-              announcements.map((ann) => (
-                <div key={ann.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition ${
-                  ann.is_pinned ? 'border-blue-300 bg-gradient-to-r from-white to-blue-50/30' : 'border-slate-100'
-                }`}>
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3 flex-wrap">
-                        {ann.is_pinned && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            <Pin size={10} /> Pinned
-                          </span>
-                        )}
-                        <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getPriorityBadge(ann.priority)}`}>
-                          {getPriorityIcon(ann.priority)}
-                          {ann.priority}
-                        </div>
-                        <h3 className="font-semibold text-slate-800">{ann.title}</h3>
-                      </div>
-                      <div className="flex gap-1">
-                        <button 
-                          onClick={() => togglePin(ann.id, ann.is_pinned)} 
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition"
-                          title={ann.is_pinned ? 'Unpin' : 'Pin'}
-                        >
-                          <Pin size={14} />
-                        </button>
-                        <button 
-                          onClick={() => deleteAnnouncement(ann.id)} 
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
+        ) : (
+          announcements.map((ann) => {
+            const priorityStyle = getPriorityStyle(ann.priority);
+            return (
+              <div key={ann.id} style={{
+                background: ann.is_pinned ? `linear-gradient(135deg, ${T.white} 0%, ${T.tealLight} 100%)` : T.white,
+                borderRadius: 18,
+                border: ann.is_pinned ? `1px solid ${T.teal}` : `1px solid ${T.border}`,
+                overflow: 'hidden',
+                boxShadow: ann.is_pinned ? `0 4px 12px ${T.teal}20` : '0 2px 8px rgba(27,43,107,0.04)',
+                transition: 'all 0.22s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(27,43,107,0.12)'; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = ann.is_pinned ? `0 4px 12px ${T.teal}20` : '0 2px 8px rgba(27,43,107,0.04)'; }}>
+                <div style={{ padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                      {ann.is_pinned && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                          padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600,
+                          background: T.tealLight, color: T.teal
+                        }}>
+                          <Pin size={10} /> Pinned
+                        </span>
+                      )}
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 600,
+                        background: priorityStyle.bg, color: priorityStyle.text, border: `1px solid ${priorityStyle.border}`
+                      }}>
+                        {getPriorityIcon(ann.priority)}
+                        {ann.priority}
+                      </span>
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.navy }}>{ann.title}</h3>
                     </div>
-                    
-                    <p className="text-slate-600 text-sm mb-4 whitespace-pre-wrap">{ann.content}</p>
-                    
-                    <div className="flex justify-between items-center text-xs text-slate-400">
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                          <Clock size={12} />
-                          {new Date(ann.created_at).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Eye size={12} />
-                          Sent to all residents
-                        </span>
-                      </div>
-                      <button className="flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:underline transition">
-                        <Send size={12} /> Send to WhatsApp
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button 
+                        onClick={() => togglePin(ann.id, ann.is_pinned)} 
+                        style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: T.textSm, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = T.surface; e.currentTarget.style.color = T.teal; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSm; }}
+                        title={ann.is_pinned ? 'Unpin' : 'Pin'}
+                      >
+                        <Pin size={14} />
+                      </button>
+                      <button 
+                        onClick={() => deleteAnnouncement(ann.id)} 
+                        style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', cursor: 'pointer', color: T.textSm, transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = T.redLight; e.currentTarget.style.color = T.red; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.textSm; }}
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
                       </button>
                     </div>
                   </div>
+                  
+                  <p style={{ margin: '0 0 16px', fontSize: 13, color: T.textMd, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{ann.content}</p>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: T.textSm }}>
+                    <div style={{ display: 'flex', gap: 16 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={11} />
+                        {new Date(ann.created_at).toLocaleDateString()}
+                      </span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Eye size={11} />
+                        Sent to all residents
+                      </span>
+                    </div>
+                    <button style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      background: 'transparent', border: 'none', fontSize: 11,
+                      color: T.teal, cursor: 'pointer', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.color = T.orange}
+                    onMouseLeave={e => e.currentTarget.style.color = T.teal}>
+                      <Send size={11} /> Send to WhatsApp
+                    </button>
+                  </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      </main>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       {/* Create Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full">
-            <div className="p-5 border-b border-slate-100 flex justify-between items-center">
+        <div style={{ position:'fixed', inset:0, background:'rgba(15,26,62,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:100, padding:16 }}>
+          <div style={{ background:T.white, borderRadius:20, maxWidth:500, width:'100%' }}>
+            <div style={{ padding:'20px 24px', borderBottom:`1px solid ${T.border}`, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
-                <h2 className="text-lg font-bold text-slate-800">New Announcement</h2>
-                <p className="text-xs text-slate-500 mt-1">This will be sent to all residents</p>
+                <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:T.navy }}>New Announcement</h3>
+                <p style={{ margin:'4px 0 0', fontSize:11, color:T.textSm }}>This will be sent to all residents</p>
               </div>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-lg">
-                <X size={18} />
+              <button onClick={() => setShowModal(false)} style={{ padding:6, borderRadius:8, background:'transparent', border:'none', cursor:'pointer' }}>
+                <X size={18} color={T.textSm} />
               </button>
             </div>
-            <div className="p-5 space-y-4">
+            <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:16 }}>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Title</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., Water Maintenance Notice"
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit' }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Content</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Content</label>
                 <textarea
                   rows={4}
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Write your announcement here..."
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit', resize:'vertical' }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Priority</label>
+                <label style={{ display:'block', fontSize:12, fontWeight:600, color:T.textMd, marginBottom:6 }}>Priority</label>
                 <select
                   value={formData.priority}
                   onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  style={{ width:'100%', padding:'10px 12px', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, outline:'none', fontFamily:'inherit', background:T.white }}
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 >
                   <option value="normal">Normal - Regular information</option>
                   <option value="important">Important - Needs attention</option>
                   <option value="urgent">Urgent - Immediate action required</option>
                 </select>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
                 <input
                   type="checkbox"
                   checked={formData.is_pinned}
                   onChange={(e) => setFormData({ ...formData, is_pinned: e.target.checked })}
-                  className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  style={{ width:16, height:16, borderRadius:4, border:`1px solid ${T.border}`, cursor:'pointer' }}
                 />
-                <span className="text-sm text-slate-700">Pin this announcement (shows at top)</span>
+                <span style={{ fontSize:12, color:T.textMd }}>Pin this announcement (shows at top)</span>
               </label>
             </div>
-            <div className="p-5 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button onClick={createAnnouncement} className="flex-1 py-2 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition">Post Announcement</button>
+            <div style={{ padding:'16px 24px', borderTop:`1px solid ${T.border}`, display:'flex', gap:12 }}>
+              <button onClick={() => setShowModal(false)} style={{ flex:1, padding:'10px', background:'transparent', border:`1px solid ${T.border}`, borderRadius:10, fontSize:13, fontWeight:600, color:T.textMd, cursor:'pointer' }}>Cancel</button>
+              <button onClick={createAnnouncement} style={{ flex:1, padding:'10px', background:T.navy, border:'none', borderRadius:10, fontSize:13, fontWeight:600, color:'#fff', cursor:'pointer' }}>Post Announcement</button>
             </div>
           </div>
         </div>
       )}
-    </div>
+
+      <style>{`
+        .fade-up {
+          animation: fadeUp 0.5s ease both;
+        }
+        .fade-up-2 {
+          animation: fadeUp 0.5s 0.08s ease both;
+        }
+        .fade-up-3 {
+          animation: fadeUp 0.5s 0.16s ease both;
+        }
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(14px);
+          }
+          to {
+            opacity: 1;
+            transform: none;
+          }
+        }
+      `}</style>
+    </Layout>
   );
 }
