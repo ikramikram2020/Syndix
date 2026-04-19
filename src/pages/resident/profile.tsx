@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
 import { useResidentAuth } from '../../hooks/useResidentAuth';
+import { T } from '../../styles/theme';
 import { 
   User, Mail, Phone, Home, Building2, 
   Calendar, Shield, Edit, ArrowLeft, 
-  CheckCircle, AlertCircle, Save, X, LogOut
+  CheckCircle, AlertCircle, Save, X, LogOut,
+  Sparkles, Clock, Key, Award
 } from 'lucide-react';
 
 export default function ResidentProfile() {
@@ -18,6 +20,8 @@ export default function ResidentProfile() {
     email: ''
   });
   const [saving, setSaving] = useState(false);
+  const [memberSince, setMemberSince] = useState('');
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (resident) {
@@ -25,6 +29,16 @@ export default function ResidentProfile() {
         phone: resident.phone || '',
         email: resident.email || ''
       });
+      
+      // Get member since date from resident object or set default
+      // Use any to access created_at as it might exist in the resident object
+      const residentAny = resident as any;
+      if (residentAny.created_at) {
+        const date = new Date(residentAny.created_at);
+        setMemberSince(date.toLocaleDateString('en', { month: 'long', year: 'numeric' }));
+      } else {
+        setMemberSince('2024');
+      }
       setLoading(false);
     }
   }, [resident]);
@@ -44,6 +58,7 @@ export default function ResidentProfile() {
     if (error) {
       alert('Error updating profile: ' + error.message);
     } else {
+      // Update local resident object
       resident.phone = formData.phone;
       resident.email = formData.email;
       setEditing(false);
@@ -52,129 +67,315 @@ export default function ResidentProfile() {
     setSaving(false);
   };
 
+  const handleLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
+  };
+
   if (loading || !resident) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-900 to-blue-950 pb-24">
+    <div style={{ 
+      minHeight: '100vh', 
+      background: T.canvasBg,
+      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      paddingBottom: 40
+    }}>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(30px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        .fade-in-up {
+          animation: fadeInUp 0.5s ease both;
+        }
+        .slide-in {
+          animation: slideIn 0.4s ease both;
+        }
+        .pulse {
+          animation: pulse 2s ease-in-out infinite;
+        }
+        .card-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(5,15,36,0.1);
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="px-5 pt-8 pb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
-              <ArrowLeft size={20} className="text-white" />
-            </button>
-            <div>
-              <h1 className="text-white text-2xl font-bold">My Profile</h1>
-              <p className="text-blue-300 text-sm">Your personal information</p>
+      <div style={{
+        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
+        padding: '24px 20px 40px',
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button 
+                onClick={() => router.back()} 
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <ArrowLeft size={20} color="#fff" />
+              </button>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <Sparkles size={14} color={T.orange} />
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>PERSONAL INFO</span>
+                </div>
+                <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>My Profile</h1>
+              </div>
+            </div>
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  background: T.orange,
+                  border: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(245,166,35,0.3)'
+                }}
+              >
+                <Edit size={18} color="#fff" />
+              </button>
+            )}
+          </div>
+
+          {/* Avatar Section */}
+          <div className="slide-in" style={{ textAlign: 'center' }}>
+            <div className="pulse" style={{
+              width: 100,
+              height: 100,
+              borderRadius: 50,
+              background: `linear-gradient(135deg, ${T.orange}, ${T.orangeDeep})`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              boxShadow: '0 8px 20px rgba(245,166,35,0.3)',
+              border: '3px solid rgba(255,255,255,0.2)'
+            }}>
+              <span style={{ fontSize: 36, fontWeight: 700, color: '#fff' }}>
+                {resident.full_name?.charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <h2 style={{ margin: '12px 0 4px', fontSize: 22, fontWeight: 800, color: '#fff' }}>
+              {resident.full_name}
+            </h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Shield size={12} color={T.green} />
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>Verified Resident</span>
             </div>
           </div>
-          {!editing && (
-            <button
-              onClick={() => setEditing(true)}
-              className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-lg"
-            >
-              <Edit size={18} className="text-white" />
-            </button>
-          )}
         </div>
       </div>
 
-      {/* Profile Card */}
-      <div className="px-5">
-        <div className="bg-white rounded-2xl overflow-hidden shadow-xl">
-          {/* Avatar */}
-          <div className="bg-gradient-to-r from-blue-700 to-blue-800 p-6 text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center mx-auto shadow-lg">
-              <span className="text-white font-bold text-3xl">{resident.full_name?.charAt(0)}</span>
-            </div>
-            <h2 className="text-white text-xl font-bold mt-3">{resident.full_name}</h2>
-            <p className="text-blue-200 text-sm">Resident</p>
-          </div>
-
-          {/* Info */}
-          <div className="p-5 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Home size={18} className="text-blue-600" />
+      {/* Profile Info Card */}
+      <div className="fade-in-up" style={{ padding: '20px' }}>
+        <div style={{
+          background: T.white,
+          borderRadius: 24,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(5,15,36,0.08)',
+          border: `1px solid ${T.border}`
+        }}>
+          
+          {/* Info Items */}
+          <div style={{ padding: '20px' }}>
+            {/* Apartment */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0',
+              borderBottom: `1px solid ${T.border}`
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.tealLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Home size={20} color={T.teal} />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Apartment</p>
-                <p className="font-medium text-slate-800">Apartment {resident.apartment_number}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Building2 size={18} className="text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Building</p>
-                <p className="font-medium text-slate-800">{resident.building_name}</p>
-                <p className="text-xs text-slate-400">{resident.building_city}</p>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>APARTMENT</p>
+                <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: T.navy }}>
+                  Apartment {resident.apartment_number || '?'}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Mail size={18} className="text-blue-600" />
+            {/* Building */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0',
+              borderBottom: `1px solid ${T.border}`
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.orangeLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Building2 size={20} color={T.orange} />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Email</p>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>BUILDING</p>
+                <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: T.navy }}>
+                  {resident.building_name || 'Your Building'}
+                </p>
+                <p style={{ margin: '2px 0 0', fontSize: 11, color: T.textSm }}>
+                  {resident.building_city || ''}
+                </p>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0',
+              borderBottom: `1px solid ${T.border}`
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Mail size={20} color={T.green} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>EMAIL</p>
                 {editing ? (
                   <input
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-3 py-1 border border-slate-200 rounded-lg text-sm"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 10,
+                      fontSize: 14,
+                      marginTop: 4,
+                      outline: 'none'
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                    onBlur={e => e.currentTarget.style.borderColor = T.border}
+                    autoFocus
                   />
                 ) : (
-                  <p className="font-medium text-slate-800">{resident.email || 'Not provided'}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
+                    {resident.email || 'Not provided'}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Phone size={18} className="text-blue-600" />
+            {/* Phone */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0',
+              borderBottom: `1px solid ${T.border}`
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: '#F3E8FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Phone size={20} color="#7C3AED" />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Phone</p>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>PHONE</p>
                 {editing ? (
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-1 border border-slate-200 rounded-lg text-sm"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 10,
+                      fontSize: 14,
+                      marginTop: 4,
+                      outline: 'none'
+                    }}
+                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
+                    onBlur={e => e.currentTarget.style.borderColor = T.border}
                   />
                 ) : (
-                  <p className="font-medium text-slate-800">{resident.phone || 'Not provided'}</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
+                    {resident.phone || 'Not provided'}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Calendar size={18} className="text-blue-600" />
+            {/* Member Since */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0',
+              borderBottom: `1px solid ${T.border}`
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Calendar size={20} color={T.textMd} />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Member Since</p>
-                <p className="font-medium text-slate-800">2024</p>
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>MEMBER SINCE</p>
+                <p style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 500, color: T.navy }}>
+                  {memberSince}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                <Shield size={18} className="text-green-600" />
+            {/* Account Status */}
+            <div className="card-hover" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '14px 0'
+            }}>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shield size={20} color={T.green} />
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-slate-400">Account Status</p>
-                <p className="font-medium text-green-600 flex items-center gap-1">
+              <div style={{ flex: 1 }}>
+                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>ACCOUNT STATUS</p>
+                <p style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 600, color: T.green, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <CheckCircle size={14} /> Active
                 </p>
               </div>
@@ -183,17 +384,50 @@ export default function ResidentProfile() {
 
           {/* Edit Mode Buttons */}
           {editing && (
-            <div className="p-5 border-t border-slate-100 flex gap-3">
+            <div style={{ 
+              padding: '16px 20px 20px', 
+              borderTop: `1px solid ${T.border}`,
+              background: T.surface,
+              display: 'flex',
+              gap: 12
+            }}>
               <button
                 onClick={() => setEditing(false)}
-                className="flex-1 py-3 border border-slate-200 rounded-xl text-slate-600 font-medium"
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: 'transparent',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 14,
+                  color: T.textMd,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 Cancel
               </button>
               <button
                 onClick={saveChanges}
                 disabled={saving}
-                className="flex-1 py-3 bg-orange-500 text-white rounded-xl font-medium disabled:opacity-50"
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  background: T.navy,
+                  border: 'none',
+                  borderRadius: 14,
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.7 : 1,
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={e => { if (!saving) e.currentTarget.style.background = T.navyDeep }}
+                onMouseLeave={e => { if (!saving) e.currentTarget.style.background = T.navy }}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -202,10 +436,31 @@ export default function ResidentProfile() {
 
           {/* Logout Button */}
           {!editing && (
-            <div className="p-5 border-t border-slate-100">
+            <div style={{ 
+              padding: '16px 20px 20px', 
+              borderTop: `1px solid ${T.border}`,
+              background: T.surface
+            }}>
               <button
-                onClick={logout}
-                className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium flex items-center justify-center gap-2"
+                onClick={() => setShowLogoutConfirm(true)}
+                style={{
+                  width: '100%',
+                  padding: '14px',
+                  background: T.redLight,
+                  border: 'none',
+                  borderRadius: 14,
+                  color: T.red,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#FEE2E2'}
+                onMouseLeave={e => e.currentTarget.style.background = T.redLight}
               >
                 <LogOut size={18} />
                 Sign Out
@@ -214,6 +469,86 @@ export default function ResidentProfile() {
           )}
         </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <>
+          <div 
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(5,15,36,0.5)',
+              zIndex: 90,
+              backdropFilter: 'blur(4px)'
+            }}
+            onClick={() => setShowLogoutConfirm(false)}
+          />
+          <div className="fade-in-up" style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: T.white,
+            borderRadius: '28px 28px 0 0',
+            padding: 24,
+            zIndex: 100,
+            boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{
+                width: 60,
+                height: 60,
+                borderRadius: 30,
+                background: T.redLight,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px'
+              }}>
+                <LogOut size={28} color={T.red} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.navy }}>Sign Out?</h3>
+              <p style={{ margin: '8px 0 0', fontSize: 13, color: T.textMd }}>
+                Are you sure you want to sign out of your account?
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: 'transparent',
+                  border: `1px solid ${T.border}`,
+                  borderRadius: 14,
+                  color: T.textMd,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: T.red,
+                  border: 'none',
+                  borderRadius: 14,
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
