@@ -1,262 +1,179 @@
-import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import {
-  Mail,
-  Lock,
-  Eye,
-  EyeOff,
-  ArrowRight,
-  AlertCircle,
-  Loader2,
-} from "lucide-react";
-import { signIn } from "../lib/auth";
+import { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { ArrowLeft, Mail, Lock, CheckCircle2, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { signIn } from '../lib/auth';
+import AuthLayout from '../components/AuthLayout';
+
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError('');
     setLoading(true);
-
-    const { error: signInError, data } = await signIn(email, password);
     
-    console.log('=== LOGIN DEBUG ===');
-    console.log('Login response:', { error: signInError, hasSession: !!data?.session });
-    console.log('Email used:', email);
-    console.log('==================');
+    const { error: signInError, data } = await signIn(email, password);
+    setLoading(false);
 
     if (signInError) {
-      setError(signInError.message || "Invalid email or password.");
-      setLoading(false);
+      setError(signInError.message || 'Invalid email or password.');
     } else if (data?.session) {
-      // Success - wait a moment for session to be saved
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 500);
-    } else {
-      setError("Something went wrong. Please try again.");
-      setLoading(false);
+      router.push('/dashboard');
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-16 xl:px-24 bg-white">
-        <div className="w-full max-w-md mx-auto">
-          <Link href="/" className="inline-flex items-center gap-3 mb-10 group">
-            <img
-              src="/5769129754689736308.jpg"
-              alt="Syndix"
-              className="h-10 w-10 rounded-xl object-contain bg-white border border-slate-100 shadow-sm"
-            />
-            <div>
-              <p className="text-lg font-black text-brand-navy leading-none">
-                SYNDIX
-              </p>
-              <p className="text-[9px] font-semibold text-brand-teal tracking-widest uppercase">
-                Digital Property Platform
-              </p>
-            </div>
-          </Link>
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden lg:grid lg:grid-cols-2">
+      {/* Left Side: Photo & Content */}
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="hidden lg:flex relative overflow-hidden items-center justify-center p-8 bg-slate-900 shadow-2xl z-10"
+      >
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=2070&auto=format&fit=crop" 
+            className="w-full h-full object-cover grayscale-[0.5] brightness-75 opacity-60"
+            alt="Modern Residential Building"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-slate-900/20 to-transparent"></div>
+        </div>
 
-          <div className="mb-8 animate-fade-in-up">
-            <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">
-              Welcome back
-            </h1>
-            <p className="text-slate-500">
-              Sign in to your account to continue
-            </p>
+        <div className="relative z-10 max-w-lg text-white">
+          <h1 className="text-5xl font-black leading-tight mb-5 tracking-tighter italic">
+            Welcome <br />
+            <span className="text-[#2BBCD4] not-italic">Back.</span>
+          </h1>
+          <p className="text-base text-slate-300 mb-8 leading-relaxed font-medium italic">
+            Sign in to manage your buildings, residents, and payments.
+          </p>
+
+          <div className="space-y-4">
+            {[
+              "Free 30-day trial, no credit card needed",
+              "Manage unlimited buildings & residents",
+              "QR access, payments, tickets & more",
+              "Get started in under 5 minutes"
+            ].map((item, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + (i * 0.1) }}
+                className="flex items-center gap-3 group"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#2BBCD4]/20 flex items-center justify-center group-hover:bg-[#2BBCD4]/40 transition-colors">
+                  <CheckCircle2 className="w-3 h-3 text-[#2BBCD4]" />
+                </div>
+                <span className="text-[10px] font-bold text-slate-200 uppercase tracking-widest">{item}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Right Side: Login Form */}
+      <div className="w-full flex flex-col justify-center p-6 lg:p-8 relative bg-white overflow-hidden">
+        <div className="max-w-md w-full mx-auto">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo3.png" 
+              className="w-32 h-auto object-contain"
+              alt="SYNDIX Logo"
+            />
+          </div>
+
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Welcome back</h2>
+            <p className="text-slate-500 mt-1 text-sm">Sign in to your account</p>
           </div>
 
           {error && (
-            <div className="mb-5 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200 rounded-xl animate-scale-in">
-              <AlertCircle
-                size={16}
-                className="text-red-500 flex-shrink-0 mt-0.5"
-              />
-              <p className="text-sm text-red-600 font-medium">{error}</p>
+            <div className="mb-4 flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-600 font-medium">{error}</p>
             </div>
           )}
 
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5 animate-fade-in-up"
-            style={{ animationDelay: "0.05s" }}
-          >
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Email address
-              </label>
-              <div className="relative">
-                <Mail
-                  size={16}
-                  className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type="email"
-                  autoComplete="email"
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="email" 
                   required
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@syndix.com"
-                  className="w-full ps-10 pe-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 transition-all bg-slate-50 hover:bg-white focus:bg-white"
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="ahmed.m@syndix.dz"
+                  className="w-full h-11 pl-10 pr-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-slate-700">
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-xs text-orange-500 hover:text-orange-600 font-medium transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="relative">
-                <Lock
-                  size={16}
-                  className="absolute start-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-                <input
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="current-password"
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full ps-10 pe-10 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 transition-all bg-slate-50 hover:bg-white focus:bg-white"
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-10 pr-10 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all text-sm"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword((p) => !p)}
-                  className="absolute end-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5">
-              <input
-                type="checkbox"
-                id="remember"
-                className="w-4 h-4 rounded border-slate-300 text-brand-teal focus:ring-brand-teal/30 cursor-pointer"
-              />
-              <label
-                htmlFor="remember"
-                className="text-sm text-slate-600 cursor-pointer select-none"
-              >
-                Remember me for 30 days
-              </label>
+            <div className="text-right">
+              <Link href="/forgot-password" className="text-xs text-[#2BBCD4] hover:text-[#1C2B6B] font-medium">
+                Forgot password?
+              </Link>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="group w-full flex items-center justify-center gap-2.5 py-3.5 bg-brand-navy hover:bg-[#16205e] disabled:bg-brand-navy/70 text-white font-bold rounded-xl shadow-lg shadow-brand-navy/25 transition-all hover:-translate-y-0.5 hover:shadow-brand-navy/35 disabled:cursor-not-allowed disabled:transform-none text-sm"
+              className="group w-full h-11 text-xs font-black uppercase tracking-widest bg-[#1C2B6B] hover:bg-[#0D1A45] text-white rounded-xl shadow-lg shadow-[#1C2B6B]/20 mt-2 active:scale-95 transition-all duration-200 disabled:opacity-50"
             >
               {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 size={14} className="animate-spin" />
                   Signing in...
-                </>
+                </span>
               ) : (
-                <>
-                  Sign in to Syndix
-                  <ArrowRight
-                    size={16}
-                    className="group-hover:translate-x-0.5 transition-transform"
-                  />
-                </>
+                <span className="flex items-center justify-center gap-2">
+                  Sign in <ArrowLeft className="w-4 h-4 rotate-180" />
+                </span>
               )}
             </button>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
-              Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="text-brand-teal hover:text-brand-navy font-semibold transition-colors"
-              >
+          <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+            <p className="text-slate-500 text-xs font-medium">
+              Don't have an account?{' '}
+              <Link href="/register" className="text-[#2BBCD4] font-bold hover:text-[#1C2B6B] transition-colors underline-offset-4 hover:underline">
                 Create free account
               </Link>
             </p>
-          </div>
-
-          <div className="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <p className="text-xs font-semibold text-slate-500 mb-2">
-              Demo credentials
-            </p>
-            <p className="text-xs text-slate-400 font-mono">
-              Email: zakariaabdo391@gmail.com
-            </p>
-            <p className="text-xs text-slate-400 font-mono">
-              Password: (your password)
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="hidden lg:flex flex-1 relative overflow-hidden">
-        <img
-          src="https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-          alt="Modern residential building"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-navy/80 via-[#1a3a8f]/70 to-brand-teal/60" />
-
-        <div className="relative flex flex-col justify-between p-12 w-full">
-          <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/15 rounded-full backdrop-blur-sm">
-              <span className="w-1.5 h-1.5 rounded-full bg-brand-teal animate-pulse" />
-              <span className="text-xs font-semibold text-white">
-                Trusted by 1,200+ buildings
-              </span>
-            </div>
-          </div>
-
-          <div>
-            <blockquote className="text-white mb-8">
-              <p className="text-2xl font-black leading-tight mb-4">
-                "Manage your building smarter with SYNDIX"
-              </p>
-              <p className="text-blue-200/70 text-base leading-relaxed max-w-sm">
-                The complete digital platform for building managers. Residents,
-                payments, maintenance, and access — all in one place.
-              </p>
-            </blockquote>
-
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { value: "1,200+", label: "Buildings" },
-                { value: "48K+", label: "Residents" },
-                { value: "99.2%", label: "Uptime" },
-              ].map((stat, i) => (
-                <div
-                  key={i}
-                  className="bg-white/8 border border-white/10 rounded-xl p-4 backdrop-blur-sm"
-                >
-                  <p className="text-xl font-black text-white mb-0.5">
-                    {stat.value}
-                  </p>
-                  <p className="text-xs text-blue-200/60 font-medium">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       </div>

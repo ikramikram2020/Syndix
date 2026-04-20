@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Mail, Lock, Eye, EyeOff, User, ArrowRight, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, CheckCircle2, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { signUp } from '../lib/auth';
 
 export default function RegisterPage() {
@@ -37,145 +38,142 @@ export default function RegisterPage() {
     
     setLoading(true);
 
-    // Use Supabase sign up
-    const { error: signUpError } = await signUp(form.email, form.password, form.name);
+    const { data, error: signUpError } = await signUp(form.email, form.password, form.name);
 
     setLoading(false);
 
     if (signUpError) {
       setError(signUpError.message);
-    } else {
-      // Redirect to login after successful registration
-      router.push('/login?registered=true');
+    } else if (data?.user) {
+      router.push('/dashboard/setup');
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex w-[45%] relative overflow-hidden flex-shrink-0">
-        <img
-          src="https://images.pexels.com/photos/1560932/pexels-photo-1560932.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2"
-          alt="Modern apartment complex"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-teal/75 via-brand-navy/80 to-[#0f2260]/90" />
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden lg:grid lg:grid-cols-2">
+      {/* Left Side: Photo & Content */}
+      <motion.div 
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: "easeOut" }}
+        className="hidden lg:flex relative overflow-hidden items-center justify-center p-8 bg-slate-900 shadow-2xl z-10"
+      >
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=2070&auto=format&fit=crop" 
+            className="w-full h-full object-cover grayscale-[0.5] brightness-75 opacity-60"
+            alt="Modern Residential Building"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-blue-900/40 via-slate-900/20 to-transparent"></div>
+        </div>
 
-        <div className="relative flex flex-col justify-between p-12 w-full">
-          <Link href="/" className="inline-flex items-center gap-3 group">
-            <img src="/5769129754689736308.jpg" alt="Syndix" className="h-9 w-9 rounded-xl object-contain bg-white border border-white/20" />
-            <div>
-              <p className="text-base font-black text-white leading-none">SYNDIX</p>
-              <p className="text-[9px] font-semibold text-brand-teal tracking-widest uppercase">Digital Property Platform</p>
-            </div>
-          </Link>
+        <div className="relative z-10 max-w-lg text-white">
+          <h1 className="text-5xl font-black leading-tight mb-5 tracking-tighter italic">
+            Digital <br />
+            <span className="text-[#2BBCD4] not-italic">Property.</span>
+          </h1>
+          <p className="text-base text-slate-300 mb-8 leading-relaxed font-medium italic">
+            Join the new standard of property management in Algiers. 
+            Automated, professional, and secure.
+          </p>
 
-          <div>
-            <div className="space-y-4 mb-10">
-              {[
-                { icon: CheckCircle, text: 'Free 30-day trial, no credit card needed' },
-                { icon: CheckCircle, text: 'Manage unlimited buildings & residents' },
-                { icon: CheckCircle, text: 'QR access, payments, tickets & more' },
-                { icon: CheckCircle, text: 'Get started in under 5 minutes' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-brand-teal/20 border border-brand-teal/30 flex items-center justify-center flex-shrink-0">
-                    <item.icon size={12} className="text-brand-teal" />
-                  </div>
-                  <p className="text-sm text-white/80 font-medium">{item.text}</p>
+          <div className="space-y-4">
+            {[
+              "Free 30-day trial, no credit card needed",
+              "Manage unlimited buildings & residents",
+              "QR access, payments, tickets & more",
+              "Get started in under 5 minutes"
+            ].map((item, i) => (
+              <motion.div 
+                key={i} 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 + (i * 0.1) }}
+                className="flex items-center gap-3 group"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#2BBCD4]/20 flex items-center justify-center group-hover:bg-[#2BBCD4]/40 transition-colors">
+                  <CheckCircle2 className="w-3 h-3 text-[#2BBCD4]" />
                 </div>
-              ))}
-            </div>
-
-            <div className="bg-white/8 border border-white/12 rounded-2xl p-6 backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-amber to-orange-400 flex items-center justify-center font-bold text-white text-sm">M</div>
-                <div>
-                  <p className="text-sm font-bold text-white">Mohamed Saidi</p>
-                  <p className="text-xs text-white/50">Building Manager · Algiers</p>
-                </div>
-              </div>
-              <p className="text-sm text-white/70 leading-relaxed italic">
-                "Syndix transformed our building management. We cut admin work by 80% in the first month."
-              </p>
-            </div>
+                <span className="text-[10px] font-bold text-slate-200 uppercase tracking-widest">{item}</span>
+              </motion.div>
+            ))}
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 lg:px-14 xl:px-20 bg-white overflow-y-auto">
-        <div className="w-full max-w-md mx-auto">
-          <Link href="/" className="lg:hidden inline-flex items-center gap-3 mb-8">
-            <img src="/5769129754689736308.jpg" alt="Syndix" className="h-9 w-9 rounded-xl object-contain bg-white border border-slate-100 shadow-sm" />
-            <div>
-              <p className="text-lg font-black text-brand-navy leading-none">SYNDIX</p>
-              <p className="text-[9px] font-semibold text-brand-teal tracking-widest uppercase">Digital Property Platform</p>
-            </div>
-          </Link>
+      {/* Right Side: Register Form with Logo */}
+      <div className="w-full flex flex-col justify-center p-6 lg:p-8 relative bg-white overflow-hidden">
+        <div className="max-w-md w-full mx-auto">
+          {/* Logo on white side - properly sized */}
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo2.png" 
+              className="w-36 h-auto object-contain"
+              alt="SYNDIX Logo"
+            />
+          </div>
 
-          <div className="mb-8">
-            <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Create your account</h1>
-            <p className="text-slate-500">Start your free 30-day trial. No credit card required.</p>
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Create account</h2>
+            <p className="text-slate-500 mt-1 text-sm">Start your free 30-day trial. No credit card required.</p>
           </div>
 
           {error && (
-            <div className="mb-5 flex items-start gap-3 px-4 py-3.5 bg-red-50 border border-red-200 rounded-xl">
-              <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-600 font-medium">{error}</p>
+            <div className="mb-4 flex items-start gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-xl">
+              <AlertCircle size={14} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-600 font-medium">{error}</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Full name</label>
-              <div className="relative">
-                <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  autoComplete="name"
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+              <div className="relative mt-1">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text" 
                   required
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Mohamed Saidi"
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 transition-all bg-slate-50 hover:bg-white focus:bg-white"
+                  placeholder="Ahmed Mansouri"
+                  className="w-full h-11 pl-10 pr-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all placeholder:text-slate-300 text-slate-900 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Email address</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="email"
-                  autoComplete="email"
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="email" 
                   required
                   value={form.email}
                   onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="you@building.com"
-                  className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 transition-all bg-slate-50 hover:bg-white focus:bg-white"
+                  placeholder="ahmed.m@syndix.dz"
+                  className="w-full h-11 pl-10 pr-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all placeholder:text-slate-300 text-slate-900 text-sm"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
                   required
                   value={form.password}
                   onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  placeholder="Min. 6 characters"
-                  className="w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-brand-teal focus:ring-2 focus:ring-brand-teal/15 transition-all bg-slate-50 hover:bg-white focus:bg-white"
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-10 pr-10 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all placeholder:text-slate-300 text-slate-900 text-sm"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(p => !p)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
               {strength && (
@@ -202,66 +200,50 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Confirm password</label>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
                   type={showConfirm ? 'text' : 'password'}
-                  autoComplete="new-password"
                   required
                   value={form.confirm}
                   onChange={e => setForm(f => ({ ...f, confirm: e.target.value }))}
-                  placeholder="Repeat your password"
-                  className={`w-full pl-10 pr-10 py-3 border rounded-xl text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 transition-all bg-slate-50 hover:bg-white focus:bg-white ${
-                    form.confirm && form.confirm !== form.password
-                      ? 'border-red-300 focus:border-red-400 focus:ring-red-100'
-                      : 'border-slate-200 focus:border-brand-teal focus:ring-brand-teal/15'
-                  }`}
+                  placeholder="••••••••"
+                  className="w-full h-11 pl-10 pr-10 bg-slate-50 border border-slate-100 rounded-xl focus:ring-2 focus:ring-[#2BBCD4]/10 focus:border-[#2BBCD4] outline-none transition-all placeholder:text-slate-300 text-slate-900 text-sm"
                 />
                 <button
                   type="button"
-                  onClick={() => setShowConfirm(p => !p)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  onClick={() => setShowConfirm(!showConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
-                  {showConfirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showConfirm ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
-                {form.confirm && form.confirm === form.password && (
-                  <CheckCircle size={15} className="absolute right-10 top-1/2 -translate-y-1/2 text-emerald-500" />
-                )}
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="group w-full flex items-center justify-center gap-2.5 py-3.5 bg-brand-navy hover:bg-[#16205e] disabled:bg-brand-navy/70 text-white font-bold rounded-xl shadow-lg shadow-brand-navy/25 transition-all hover:-translate-y-0.5 hover:shadow-brand-navy/35 disabled:cursor-not-allowed disabled:transform-none text-sm mt-2"
+              className="group w-full h-11 text-xs font-black uppercase tracking-widest bg-[#1C2B6B] hover:bg-[#0D1A45] text-white rounded-xl shadow-lg shadow-[#1C2B6B]/20 mt-2 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 size={14} className="animate-spin" />
                   Creating account...
-                </>
+                </span>
               ) : (
-                <>
-                  Create Free Account
-                  <ArrowRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
-                </>
+                <span className="group-hover:translate-x-1 transition-transform flex items-center justify-center gap-2">
+                  Create free account <ArrowLeft className="w-4 h-4 rotate-180" />
+                </span>
               )}
             </button>
-
-            <p className="text-xs text-slate-400 text-center leading-relaxed pt-1">
-              By creating an account you agree to our{' '}
-              <a href="#" className="text-brand-teal hover:underline">Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="text-brand-teal hover:underline">Privacy Policy</a>.
-            </p>
           </form>
 
-          <div className="mt-6 text-center">
-            <p className="text-sm text-slate-500">
+          <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+            <p className="text-slate-500 text-xs font-medium">
               Already have an account?{' '}
-              <Link href="/login" className="text-brand-teal hover:text-brand-navy font-semibold transition-colors">
-                Sign in
+              <Link href="/login" className="text-[#2BBCD4] font-bold hover:text-[#1C2B6B] transition-colors underline-offset-4 hover:underline">
+                Sign in here
               </Link>
             </p>
           </div>
