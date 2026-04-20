@@ -9,11 +9,12 @@ import {
   Rocket, PieChart, CreditCard, Wrench, ArrowRight, Zap, Target, Grid
 } from 'lucide-react';
 
-
 export default function Dashboard() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
+  const [userName, setUserName] = useState('');
   const [building, setBuilding] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalApartments: 0,
     occupiedApartments: 0,
@@ -32,30 +33,44 @@ export default function Dashboard() {
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchData();
+    checkUserAndBuilding();
   }, []);
 
-  const fetchData = async () => {
+  const checkUserAndBuilding = async () => {
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    
     setUser(user);
     
-    if (user) {
-      const { data: buildingData } = await supabase
-        .from('buildings')
-        .select('*')
-        .eq('syndic_id', user.id)
-        .single();
-      
-      if (buildingData) {
-        setBuilding(buildingData);
-        await fetchStats(buildingData.id);
-        await fetchRecentData(buildingData.id);
-      }
+    // Get full name from user metadata
+    const fullName = user.user_metadata?.full_name || user.email?.split('@')[0];
+    setUserName(fullName);
+    
+    // Check if building exists - use maybeSingle() instead of single()
+    const { data: buildingData } = await supabase
+      .from('buildings')
+      .select('*')
+      .eq('syndic_id', user.id)
+      .maybeSingle(); // ← Changed from .single() to .maybeSingle()
+    
+    if (!buildingData) {
+      // No building found, redirect to setup page
+      router.push('/dashboard/setup');
+      return;
     }
+    
+    setBuilding(buildingData);
+    await fetchStats(buildingData.id);
+    await fetchRecentData(buildingData.id);
+    setLoading(false);
   };
 
   const fetchStats = async (buildingId: string) => {
-    // Use proper typing and handle null values
     const { count: totalApartments } = await supabase
       .from('apartments')
       .select('*', { count: 'exact', head: true })
@@ -78,7 +93,6 @@ export default function Dashboard() {
       .eq('building_id', buildingId)
       .in('status', ['pending', 'in_progress']);
     
-    // Handle null values by providing default 0
     const totalApartmentsNum = totalApartments || 0;
     const occupiedApartmentsNum = occupiedApartmentsCount || 0;
     const totalResidentsNum = totalResidentsCount || 0;
@@ -134,6 +148,17 @@ export default function Dashboard() {
     { key: 'revenue', label: 'Monthly Revenue', icon: DollarSign, accent: T.green, bg: '#E6FBF5' },
   ];
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div style={{ minHeight:'100vh', background: T.navy, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16 }}>
+        <div style={{ width:48, height:48, borderRadius:'50%', border:`3px solid ${T.orange}`, borderTopColor:'transparent', animation:'spin 0.75s linear infinite' }} />
+        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>Loading SYNDIX…</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
+
   return (
     <Layout title="Dashboard" subtitle={new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}>
       {/* Hero Section */}
@@ -151,7 +176,7 @@ export default function Dashboard() {
               <span style={{ fontSize:10, color:'rgba(255,255,255,0.45)', letterSpacing:2, fontWeight:600, textTransform:'uppercase' }}>All Systems Operational</span>
             </div>
             <h2 style={{ margin:'0 0 6px', fontSize:24, fontWeight:800, color:'#fff', letterSpacing:'-0.5px' }}>
-              Good morning, {user?.email?.split('@')[0]}! 👋
+              Good morning, {userName}! 👋
             </h2>
             <p style={{ margin:0, fontSize:13, color:'rgba(255,255,255,0.45)' }}>
               {building?.name} · Here's your property overview for today
