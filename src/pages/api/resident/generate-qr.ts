@@ -6,6 +6,18 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Helper function to get base URL dynamically
+const getBaseUrl = (req: NextApiRequest) => {
+  // In production, use environment variable if set
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+  // In development, get from the request
+  const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+  const host = req.headers.host;
+  return `${protocol}://${host}`;
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -37,7 +49,8 @@ export default async function handler(
     const random = Math.random().toString(36).substring(2, 10);
     const token = `RES_${timestamp}_${random}`;
     
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Get base URL dynamically (works on any port)
+    const baseUrl = getBaseUrl(req);
     const accessUrl = `${baseUrl}/resident?token=${token}`;
     
     console.log('🔗 Access URL:', accessUrl);
@@ -52,21 +65,6 @@ export default async function handler(
         light: '#FFFFFF'
       }
     });
-
-    // Check if qr_codes table exists, if not create it
-    const { error: tableCheck } = await supabase
-      .from('qr_codes')
-      .select('id')
-      .limit(1);
-
-    if (tableCheck && tableCheck.message.includes('does not exist')) {
-      console.log('Creating qr_codes table...');
-      // Table doesn't exist, create it via SQL
-      const { error: createError } = await supabase.rpc('create_qr_codes_table');
-      if (createError) {
-        console.error('Failed to create table:', createError);
-      }
-    }
 
     // Save to database
     const { data, error: dbError } = await supabase
