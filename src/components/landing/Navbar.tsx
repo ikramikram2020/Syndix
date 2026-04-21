@@ -50,21 +50,13 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-18">
-          {/* Logo - Changed to href= */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/logo.png"
-              alt="Syndix Logo"
-              className="h-9 w-9 rounded-xl object-contain bg-white border border-slate-100 shadow-sm"
+          {/* Logo */}
+          <Link href="/" className="flex-shrink-0">
+            <img 
+              src="/logo2.png" 
+              className="w-36 h-auto object-contain"
+              alt="SYNDIX Logo"
             />
-            <div className="flex flex-col leading-none">
-              <span className="text-lg font-black text-brand-navy tracking-tight">
-                SYNDIX
-              </span>
-              <span className="text-[9px] font-semibold text-brand-teal tracking-widest uppercase">
-                Digital Property Platform
-              </span>
-            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -114,7 +106,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Login Button - Changed to href= */}
+            {/* Login Button */}
             <Link
               href="/login"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-700 hover:text-brand-navy px-4 py-2 transition-colors"
@@ -123,7 +115,7 @@ export default function Navbar() {
               {t.nav.login}
             </Link>
 
-            {/* Register Button - Changed to href= */}
+            {/* Register Button */}
             <Link
               href="/register"
               className="text-sm font-bold text-white bg-brand-navy hover:bg-[#16205e] px-5 py-2.5 rounded-xl shadow-md shadow-brand-navy/20 transition-all hover:shadow-brand-navy/30 hover:-translate-y-0.5"
@@ -178,7 +170,7 @@ export default function Navbar() {
             ))}
           </div>
           
-          {/* Mobile Auth Buttons - Changed to href= */}
+          {/* Mobile Auth Buttons */}
           <div className="flex gap-2 pt-1">
             <Link
               href="/login"

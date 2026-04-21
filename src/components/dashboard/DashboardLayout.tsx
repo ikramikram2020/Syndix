@@ -5,7 +5,7 @@ import { signOut } from '../../lib/auth';
 import { 
   Home, Users, CreditCard, QrCode, Wrench, Megaphone,
   LogOut, Menu, X, Building2, ChevronRight, Sparkles,
-  BarChart3, FileText, Settings, Bell
+  BarChart3, FileText, Settings, Bell, Ticket  
 } from 'lucide-react';
 
 interface DashboardLayoutProps {
@@ -19,12 +19,14 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
   const [building, setBuilding] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifications, setNotifications] = useState(3);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchBuilding();
   }, []);
 
   const fetchBuilding = async () => {
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data } = await supabase
@@ -34,6 +36,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
         .single();
       setBuilding(data);
     }
+    setLoading(false);
   };
 
   const handleLogout = async () => {
@@ -46,6 +49,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
     { id: 'residents', label: 'Residents', icon: Users, href: '/dashboard/residents' },
     { id: 'payments', label: 'Payments', icon: CreditCard, href: '/dashboard/payments' },
     { id: 'maintenance', label: 'Maintenance', icon: Wrench, href: '/dashboard/maintenance' },
+    { id: 'tickets', label: 'Tickets', icon: Ticket, href: '/dashboard/tickets' }, 
     { id: 'announcements', label: 'Announcements', icon: Megaphone, href: '/dashboard/announcements' },
     { id: 'qr-codes', label: 'QR Codes', icon: QrCode, href: '/dashboard/qr-codes' },
     { id: 'statistics', label: 'Statistics', icon: BarChart3, href: '/dashboard/statistics' },
@@ -55,7 +59,8 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
     return router.pathname === href;
   };
 
-  if (!building) {
+  // Show loading while fetching building
+  if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
@@ -88,15 +93,17 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
             </div>
           </div>
 
-          {/* Building Card */}
-          <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-800/30 border border-blue-700/50 backdrop-blur-sm">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Building2 size={12} className="text-blue-300" />
-              <p className="text-[10px] font-medium text-blue-300 uppercase tracking-wider">Current Building</p>
+          {/* Building Card - Only show if building exists */}
+          {building && (
+            <div className="mx-3 mt-4 p-3 rounded-xl bg-blue-800/30 border border-blue-700/50 backdrop-blur-sm">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Building2 size={12} className="text-blue-300" />
+                <p className="text-[10px] font-medium text-blue-300 uppercase tracking-wider">Current Building</p>
+              </div>
+              <p className="font-bold text-white text-sm">{building.name}</p>
+              <p className="text-[10px] text-blue-300 mt-1">{building.city || 'City not set'}</p>
             </div>
-            <p className="font-bold text-white text-sm">{building.name}</p>
-            <p className="text-[10px] text-blue-300 mt-1">{building.city || 'City not set'}</p>
-          </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-4 space-y-1">
@@ -150,9 +157,11 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full"></span>
                 )}
               </button>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-md">
-                {building.name?.charAt(0) || 'S'}
-              </div>
+              {building && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-700 flex items-center justify-center text-white font-semibold text-sm shadow-md">
+                  {building.name?.charAt(0) || 'S'}
+                </div>
+              )}
             </div>
           </div>
         </div>

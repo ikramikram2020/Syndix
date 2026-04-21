@@ -43,33 +43,15 @@ export default function ResidentLogin() {
         return;
       }
 
-      // Save ALL required data for the auth hook
-      const residentData = {
-        id: data.resident.id,
-        full_name: data.resident.full_name,
-        email: data.resident.email || '',
-        phone: data.resident.phone || '',
-        apartment_number: data.resident.apartment_number || '?',
-        floor: data.resident.floor || 0,
-        building_name: data.resident.building_name || 'Your Building',
-        building_city: data.resident.building_city || ''
-      };
-
-      // Save in the format the useResidentAuth hook expects
       localStorage.setItem('resident_token', data.token);
-      localStorage.setItem('resident_session', JSON.stringify(residentData));
-      
-      // Also save individual fields for direct access
-      localStorage.setItem('resident_name', residentData.full_name);
-      localStorage.setItem('resident_apartment', residentData.apartment_number);
-      localStorage.setItem('resident_building', residentData.building_name);
-      localStorage.setItem('resident_email', residentData.email);
-      localStorage.setItem('resident_city', residentData.building_city);
-      localStorage.setItem('resident_data', JSON.stringify(residentData));
+      localStorage.setItem('resident_data', JSON.stringify(data.resident));
+      localStorage.setItem('resident_name', data.resident.full_name);
+      localStorage.setItem('resident_apartment', data.resident.apartment_number || '?');
+      localStorage.setItem('resident_building', data.resident.building_name || 'Your Building');
 
-      setResidentName(residentData.full_name);
-      setApartmentNumber(residentData.apartment_number);
-      setBuildingName(residentData.building_name);
+      setResidentName(data.resident.full_name);
+      setApartmentNumber(data.resident.apartment_number || '?');
+      setBuildingName(data.resident.building_name || 'Your Building');
       setLoading(false);
       setShowWelcome(true);
 
@@ -197,6 +179,7 @@ export default function ResidentLogin() {
             textAlign: 'center',
             position: 'relative'
           }}>
+            {/* Decorative circles */}
             <div style={{
               position: 'absolute',
               top: -50,
@@ -218,6 +201,7 @@ export default function ResidentLogin() {
               pointerEvents: 'none'
             }} />
             
+            {/* Logo */}
             <div style={{
               width: 70,
               height: 70,
@@ -299,6 +283,7 @@ export default function ResidentLogin() {
               marginBottom: 24,
               border: `1px solid ${T.border}`
             }}>
+              {/* Resident Name */}
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
                 <User size={24} color={T.teal} style={{ margin: '0 auto 8px' }} />
                 <p style={{ margin: 0, fontSize: 13, color: T.textSm }}>Welcome</p>
@@ -307,12 +292,14 @@ export default function ResidentLogin() {
                 </h2>
               </div>
 
+              {/* Divider */}
               <div style={{
-                height: 1,
-                background: T.border,
-                margin: '16px 0'
-              }} />
+        height: 1,
+        background: T.border,
+        margin: '16px 0'
+      }} />
 
+              {/* Apartment Info */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Home size={18} color={T.orange} />
@@ -321,6 +308,7 @@ export default function ResidentLogin() {
                 <span style={{ fontSize: 16, fontWeight: 700, color: T.navy }}>{apartmentNumber}</span>
               </div>
 
+              {/* Building Info */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Building2 size={18} color={T.teal} />
@@ -330,6 +318,7 @@ export default function ResidentLogin() {
               </div>
             </div>
 
+            {/* Continue Button */}
             <button
               onClick={handleContinue}
               style={{
@@ -362,6 +351,7 @@ export default function ResidentLogin() {
               <ArrowRight size={18} />
             </button>
 
+            {/* Footer */}
             <p style={{
               textAlign: 'center',
               marginTop: 20,

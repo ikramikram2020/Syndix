@@ -8,7 +8,7 @@ import {
   Building2, Home, Users, CreditCard, QrCode, Wrench, Megaphone,
   LogOut, Menu, DollarSign, TrendingUp, AlertCircle, Settings, Bell,
   Activity, ChevronRight, UserPlus, ArrowRight, Percent, Zap, Star,
-  Target, FileText, Grid, BarChart3, Rocket, PieChart,
+  Target, FileText, Grid, BarChart3, Rocket, PieChart,Ticket,
 } from 'lucide-react';
 
 // Updated NAV - removed QR Codes and Reports, added Buildings and Apartments
@@ -17,6 +17,8 @@ const NAV = [
   { id: 'residents',     label: 'Residents',     icon: Users,      href: '/dashboard/residents' },
   { id: 'buildings',     label: 'Buildings',     icon: Building2,  href: '/dashboard/buildings' },
   { id: 'apartments',    label: 'Apartments',    icon: Home,       href: '/dashboard/apartments' },
+      { id: 'tickets', label: 'Tickets', icon: Ticket, href: '/dashboard/tickets' }, 
+
   { id: 'payments',      label: 'Payments',      icon: CreditCard, href: '/dashboard/payments' },
   { id: 'maintenance',   label: 'Maintenance',   icon: Wrench,     href: '/dashboard/maintenance' },
   { id: 'announcements', label: 'Announcements', icon: Megaphone,  href: '/dashboard/announcements' },

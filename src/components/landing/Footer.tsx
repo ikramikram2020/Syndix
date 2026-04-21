@@ -1,4 +1,4 @@
-import Link from "next/link";  // ← Changed from react-router-dom
+import Link from "next/link";  
 import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function Footer() {
@@ -51,10 +51,9 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           <div className="col-span-2 md:col-span-1">
-            {/* Changed "to" to "href" */}
             <Link href="/" className="flex items-center gap-3 mb-4">
               <img
-                src="/5769129754689736308.jpg"
+                src="logo2.png"
                 alt="Syndix Logo"
                 className="h-10 w-10 rounded-xl object-contain bg-white"
               />

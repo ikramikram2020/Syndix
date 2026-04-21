@@ -4,7 +4,6 @@ import { useRouter } from 'next/router';
 import { ArrowLeft, Mail, Lock, CheckCircle2, Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { signIn } from '../lib/auth';
-import AuthLayout from '../components/AuthLayout';
 
 
 export default function LoginPage() {
