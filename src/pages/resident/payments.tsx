@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { useResidentAuth } from '../../hooks/useResidentAuth';
 import { T } from '../../styles/theme';
 import { 
   CreditCard, CheckCircle, Clock, AlertCircle,
-  ArrowLeft, X, Lock, TrendingUp, Wallet, Calendar
+  ArrowLeft, X, Lock, Wallet, Calendar
 } from 'lucide-react';
 
 interface Payment {
@@ -19,30 +18,43 @@ interface Payment {
 
 export default function ResidentPayments() {
   const router = useRouter();
-  const { resident, loading: authLoading } = useResidentAuth();
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [resident, setResident] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [filter, setFilter] = useState('all');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [processing, setProcessing] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  // Get resident from localStorage directly (no auth hook)
   useEffect(() => {
-    if (!authLoading && resident?.id) {
-      fetchPayments();
-    }
-  }, [authLoading, resident]);
-
-  const fetchPayments = async () => {
-    if (!resident?.id) return;
+    const token = localStorage.getItem('resident_token');
+    const residentData = localStorage.getItem('resident_data');
     
+    if (!token || !residentData) {
+      router.push('/resident');
+      return;
+    }
+    
+    try {
+      const resident = JSON.parse(residentData);
+      setResident(resident);
+      fetchPayments(resident.id);
+    } catch (err) {
+      console.error('Error parsing resident:', err);
+      setLoading(false);
+      router.push('/resident');
+    }
+  }, []);
+
+  const fetchPayments = async (residentId: string) => {
     setLoading(true);
     
     try {
       const { data, error } = await supabase
         .from('payments')
         .select('*')
-        .eq('resident_id', resident.id)
+        .eq('resident_id', residentId)
         .order('month', { ascending: false });
       
       if (error) {
@@ -76,7 +88,9 @@ export default function ResidentPayments() {
       alert('Payment failed: ' + error.message);
     } else {
       alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid.`);
-      await fetchPayments();
+      if (resident?.id) {
+        await fetchPayments(resident.id);
+      }
       setSelectedPayment(null);
     }
     
@@ -108,7 +122,7 @@ export default function ResidentPayments() {
     }
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -117,7 +131,10 @@ export default function ResidentPayments() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: T.textMd }}>Loading payments...</p>
+        </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -167,6 +184,9 @@ export default function ResidentPayments() {
         }
         .fade-in {
           animation: fadeIn 0.4s ease both;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
 
