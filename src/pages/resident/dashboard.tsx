@@ -24,54 +24,101 @@ export default function ResidentDashboard() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('resident_token');
-    const name = localStorage.getItem('resident_name');
-    const apartment = localStorage.getItem('resident_apartment');
-    const building = localStorage.getItem('resident_building');
+    let isMounted = true;
     
-    if (!token) {
-      router.push('/resident');
-      return;
-    }
+    const initializeDashboard = async () => {
+      try {
+        const token = localStorage.getItem('resident_token');
+        const name = localStorage.getItem('resident_name');
+        const apartment = localStorage.getItem('resident_apartment');
+        const building = localStorage.getItem('resident_building');
+        
+        if (!token) {
+          router.push('/resident');
+          return;
+        }
+        
+        if (isMounted) {
+          setResidentName(name || 'Resident');
+          setApartmentNumber(apartment || '?');
+          setBuildingName(building || 'Your Building');
+        }
+        
+        await fetchDashboardStats();
+      } catch (error) {
+        console.error('Dashboard initialization error:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
     
-    setResidentName(name || 'Resident');
-    setApartmentNumber(apartment || '?');
-    setBuildingName(building || 'Your Building');
-    fetchDashboardStats();
-    setLoading(false);
+    initializeDashboard();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const fetchDashboardStats = async () => {
     try {
       const residentData = localStorage.getItem('resident_data');
-      if (residentData) {
-        const resident = JSON.parse(residentData);
-        const { data: payments } = await supabase
-          .from('payments')
-          .select('*')
-          .eq('resident_id', resident.id)
-          .eq('status', 'pending');
-        
-        const dueAmount = payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-        
-        const { data: lastPayment } = await supabase
-          .from('payments')
-          .select('paid_at')
-          .eq('resident_id', resident.id)
-          .eq('status', 'paid')
-          .order('paid_at', { ascending: false })
-          .limit(1)
-          .single();
-        
-        setStats({
-          dueAmount,
-          lastPayment: lastPayment?.paid_at || null,
-          paidCount: 0,
-          pendingCount: payments?.length || 0
-        });
+      if (!residentData) {
+        console.log('No resident data found');
+        return;
       }
+      
+      const resident = JSON.parse(residentData);
+      
+      // Fetch pending payments
+      const { data: payments, error: paymentsError } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('resident_id', resident.id)
+        .eq('status', 'pending');
+      
+      if (paymentsError) {
+        console.error('Payments fetch error:', paymentsError);
+      }
+      
+      const dueAmount = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
+      const pendingCount = payments?.length || 0;
+      
+      // Fetch paid payments count
+      const { count: paidCount, error: paidError } = await supabase
+        .from('payments')
+        .select('*', { count: 'exact', head: true })
+        .eq('resident_id', resident.id)
+        .eq('status', 'paid');
+      
+      if (paidError) {
+        console.error('Paid payments count error:', paidError);
+      }
+      
+      // Fetch last payment date
+      const { data: lastPayment, error: lastPaymentError } = await supabase
+        .from('payments')
+        .select('paid_at')
+        .eq('resident_id', resident.id)
+        .eq('status', 'paid')
+        .order('paid_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+      
+      if (lastPaymentError) {
+        console.error('Last payment fetch error:', lastPaymentError);
+      }
+      
+      setStats({
+        dueAmount,
+        lastPayment: lastPayment?.paid_at || null,
+        paidCount: paidCount || 0,
+        pendingCount
+      });
+      
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error fetching dashboard stats:', err);
     }
   };
 
@@ -108,7 +155,10 @@ export default function ResidentDashboard() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: T.textMd, fontSize: 14 }}>Loading your dashboard...</p>
+        </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
