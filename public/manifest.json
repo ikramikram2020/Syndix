@@ -2,10 +2,10 @@
   "name": "SYNDIX - Property Management",
   "short_name": "SYNDIX",
   "description": "Manage your building, pay fees, submit maintenance requests",
-  "start_url": "/dashboard",
+  "start_url": "/resident",
   "display": "standalone",
-  "background_color": "#0A1A3E",
-  "theme_color": "#1C2B6B",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FFFFFF",
   "orientation": "portrait",
   "icons": [
     {
