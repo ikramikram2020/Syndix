@@ -77,7 +77,25 @@ export default function ResidentPayments() {
     setProcessingId(payment.id);
     
     try {
-      // 1. Update payment status in database
+      // 1. Get building_id and syndic_id from resident
+      const { data: residentData, error: residentError } = await supabase
+        .from('residents')
+        .select('building_id')
+        .eq('id', resident.id)
+        .single();
+      
+      if (residentError) throw residentError;
+      
+      // 2. Get syndic_id from building
+      const { data: building, error: buildingError } = await supabase
+        .from('buildings')
+        .select('syndic_id, name')
+        .eq('id', residentData.building_id)
+        .single();
+      
+      if (buildingError) throw buildingError;
+      
+      // 3. Update payment status in database
       const { error: updateError } = await supabase
         .from('payments')
         .update({ 
@@ -86,49 +104,55 @@ export default function ResidentPayments() {
         })
         .eq('id', payment.id);
       
-      if (updateError) {
-        throw new Error(updateError.message);
-      }
+      if (updateError) throw new Error(updateError.message);
       
-      // 2. Create transaction record
+      // 4. Create transaction record
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert([{
           payment_id: payment.id,
           resident_id: resident.id,
+          building_id: residentData.building_id,
           amount: payment.amount,
           status: 'completed',
-          payment_method: 'card',
+          payment_method: 'bank_transfer',
           transaction_id: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           paid_at: new Date().toISOString()
         }]);
       
       if (transactionError) {
         console.error('Transaction record error:', transactionError);
-        // Don't throw - payment is still marked as paid
       }
       
-      // 3. Send notification to syndic via Supabase (create notification record)
+      // 5. Send notification to SYNDIC (not resident)
       const { error: notificationError } = await supabase
         .from('notifications')
         .insert([{
-          user_id: resident.id, // This should be syndic's ID - you may need to fetch it
-          title: 'Payment Received',
-          message: `${resident.full_name || 'Resident'} paid ${payment.amount.toLocaleString()} DZD`,
+          user_id: building.syndic_id,
+          title: '💰 Payment Received',
+          message: `${resident.full_name || resident.name || 'Resident'} from ${building.name} paid ${payment.amount.toLocaleString()} DZD for ${new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`,
           type: 'payment',
           read: false,
-          created_at: new Date().toISOString()
+          created_at: new Date().toISOString(),
+          data: JSON.stringify({
+            payment_id: payment.id,
+            resident_id: resident.id,
+            amount: payment.amount,
+            month: payment.month
+          })
         }]);
       
       if (notificationError) {
         console.error('Notification error:', notificationError);
+      } else {
+        console.log('✅ Syndic notified successfully');
       }
       
-      // 4. Refresh the payments list
+      // 6. Refresh the payments list
       await fetchPayments(resident.id);
       
-      // 5. Show success message
-      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid.`);
+      // 7. Show success message
+      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid. The syndic has been notified.`);
       setSelectedPayment(null);
       
     } catch (err) {
@@ -503,7 +527,7 @@ export default function ResidentPayments() {
                   <CreditCard size={20} color={T.orange} />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontWeight: 600, color: T.text }}>Cash / Bank Transfer</p>
+                  <p style={{ margin: 0, fontWeight: 600, color: T.text }}>Bank Transfer / Cash</p>
                   <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Mark as paid (offline payment)</p>
                 </div>
               </div>
@@ -519,7 +543,7 @@ export default function ResidentPayments() {
               marginBottom: 20
             }}>
               <Lock size={14} color={T.teal} />
-              <p style={{ margin: 0, fontSize: 11, color: T.teal }}>The syndic will be notified of this payment</p>
+              <p style={{ margin: 0, fontSize: 11, color: T.teal }}>The syndic will be notified immediately</p>
             </div>
 
             <button 
