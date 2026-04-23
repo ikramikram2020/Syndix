@@ -139,87 +139,89 @@ export default function ResidentMaintenance() {
   };
 
   const submitRequest = async () => {
-    if (!formData.title) {
-      alert('Please enter a title');
-      return;
+  if (!formData.title) {
+    alert('Please enter a title');
+    return;
+  }
+
+  if (!resident?.apartment_number) {
+    alert('Resident apartment information not found');
+    return;
+  }
+
+  setSubmitting(true);
+  
+  try {
+    // Get building_id from the resident's apartment
+    const { data: apartment, error: aptError } = await supabase
+      .from('apartments')
+      .select('building_id')
+      .eq('apartment_number', resident.apartment_number)
+      .maybeSingle();  // Changed from .single() to .maybeSingle()
+
+    if (aptError) {
+      console.error('Apartment error:', aptError);
+      throw new Error('Could not find apartment information');
     }
 
-    if (!resident?.apartment_number) {
-      alert('Resident apartment information not found');
-      return;
+    if (!apartment?.building_id) {
+      throw new Error('Building not found for this apartment');
     }
 
-    setSubmitting(true);
-    
-    try {
-      // Get building_id from the resident's apartment
-      const { data: apartment, error: aptError } = await supabase
-        .from('apartments')
-        .select('building_id')
-        .eq('apartment_number', resident.apartment_number)
-        .single();
+    // Insert maintenance request with building_id
+    const { data: newRequest, error: insertError } = await supabase
+      .from('maintenance_requests')
+      .insert([{
+        resident_id: resident.id,
+        building_id: apartment.building_id,
+        title: formData.title,
+        description: formData.description,
+        priority: formData.priority,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      }])
+      .select();
 
-      if (aptError) throw aptError;
+    if (insertError) throw insertError;
 
-      if (!apartment?.building_id) {
-        throw new Error('Building not found for this apartment');
-      }
+    // Get syndic_id from building
+    const { data: building, error: buildingError } = await supabase
+      .from('buildings')
+      .select('syndic_id, name')
+      .eq('id', apartment.building_id)
+      .maybeSingle();
 
-      // Insert maintenance request with building_id
-      const { data: newRequest, error: insertError } = await supabase
-        .from('maintenance_requests')
-        .insert([{
-          resident_id: resident.id,
-          building_id: apartment.building_id,
-          title: formData.title,
-          description: formData.description,
-          priority: formData.priority,
-          status: 'pending',
-          created_at: new Date().toISOString()
-        }])
-        .select();
-
-      if (insertError) throw insertError;
-
-      // Get building name for notification
-      const { data: building } = await supabase
-        .from('buildings')
-        .select('syndic_id, name')
-        .eq('id', apartment.building_id)
-        .single();
-
+    if (!buildingError && building?.syndic_id) {
       // Create notification for syndic
-      if (building?.syndic_id) {
-        await supabase
-          .from('notifications')
-          .insert([{
-            user_id: building.syndic_id,
-            title: '🔧 New Maintenance Request',
-            message: `${resident.full_name || 'Resident'} from ${building.name} submitted a ${formData.priority} priority request: ${formData.title}`,
-            type: 'maintenance',
-            read: false,
-            created_at: new Date().toISOString(),
-            data: JSON.stringify({
-              request_id: newRequest?.[0]?.id,
-              title: formData.title,
-              priority: formData.priority,
-              resident_name: resident.full_name
-            })
-          }]);
-      }
-
-      setShowForm(false);
-      setFormData({ title: '', description: '', priority: 'medium' });
-      await fetchRequests(resident.id);
-      alert('✅ Maintenance request submitted! The syndic has been notified.');
-      
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Error: ' + (err as Error).message);
-    } finally {
-      setSubmitting(false);
+      await supabase
+        .from('notifications')
+        .insert([{
+          user_id: building.syndic_id,
+          title: '🔧 New Maintenance Request',
+          message: `${resident.full_name || 'Resident'} from ${building.name} submitted a ${formData.priority} priority request: ${formData.title}`,
+          type: 'maintenance',
+          read: false,
+          created_at: new Date().toISOString(),
+          data: JSON.stringify({
+            request_id: newRequest?.[0]?.id,
+            title: formData.title,
+            priority: formData.priority
+          })
+        }]);
     }
-  };
+
+    setShowForm(false);
+    setFormData({ title: '', description: '', priority: 'medium' });
+    await fetchRequests(resident.id);
+    alert('✅ Maintenance request submitted! The syndic has been notified.');
+    
+  } catch (err) {
+    console.error('Error:', err);
+    alert('Error: ' + (err as Error).message);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   const sendMessage = async () => {
     if (!newNote.trim() || !showDetails || !resident) return;

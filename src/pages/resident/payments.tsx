@@ -49,26 +49,27 @@ export default function ResidentPayments() {
   }, []);
 
   const fetchPayments = async (residentId: string) => {
-    setLoading(true);
+  setLoading(true);
+  
+  try {
+    // Simplified query - remove the nested select that's causing the 406 error
+    const { data, error } = await supabase
+      .from('payments')
+      .select('*')  // Just get payments, no nested relations
+      .eq('resident_id', residentId)
+      .order('month', { ascending: false });
     
-    try {
-      const { data, error } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('resident_id', residentId)
-        .order('month', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching payments:', error);
-      } else {
-        setPayments(data || []);
-      }
-    } catch (err) {
-      console.error('Fetch error:', err);
-    } finally {
-      setLoading(false);
+    if (error) {
+      console.error('Error fetching payments:', error);
+    } else {
+      setPayments(data || []);
     }
-  };
+  } catch (err) {
+    console.error('Fetch error:', err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const processPayment = async (payment: Payment) => {
     if (!resident) return;

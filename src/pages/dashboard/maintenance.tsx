@@ -74,58 +74,56 @@ export default function MaintenanceManagement() {
     setLoading(false);
   };
 
-  const fetchRequests = async (buildingId: string) => {
-    try {
-      // Get all maintenance requests for this building with resident info via join
-      const { data: requestsData, error: requestsError } = await supabase
-        .from('maintenance_requests')
-        .select(`
-          *,
-          resident:residents (
-            id,
-            full_name,
-            phone,
-            email,
-            apartment_number
-          )
-        `)
-        .eq('building_id', buildingId)
-        .order('created_at', { ascending: false });
+ const fetchRequests = async (buildingId: string) => {
+  try {
+    // Simplified query - direct join
+    const { data: requestsData, error: requestsError } = await supabase
+      .from('maintenance_requests')
+      .select(`
+        *,
+        residents:resident_id (
+          id,
+          full_name,
+          phone,
+          email,
+          apartment_number
+        )
+      `)
+      .eq('building_id', buildingId)
+      .order('created_at', { ascending: false });
 
-      if (requestsError) {
-        console.error('Error fetching requests:', requestsError);
-        setRequests([]);
-        return;
-      }
-
-      if (!requestsData || requestsData.length === 0) {
-        setRequests([]);
-        return;
-      }
-
-      // Format the requests with resident info
-      const formattedRequests = requestsData.map((req: any) => ({
-        id: req.id,
-        title: req.title,
-        description: req.description,
-        priority: req.priority,
-        status: req.status,
-        created_at: req.created_at,
-        completed_at: req.completed_at,
-        resident_id: req.resident_id,
-        resident_name: req.resident?.full_name || 'Unknown Resident',
-        apartment_number: req.resident?.apartment_number || '?',
-        resident_phone: req.resident?.phone,
-        resident_email: req.resident?.email
-      }));
-
-      setRequests(formattedRequests);
-    } catch (err) {
-      console.error('Error:', err);
+    if (requestsError) {
+      console.error('Error fetching requests:', requestsError);
       setRequests([]);
+      return;
     }
-  };
 
+    if (!requestsData || requestsData.length === 0) {
+      setRequests([]);
+      return;
+    }
+
+    // Format the data
+    const formattedRequests = requestsData.map((req: any) => ({
+      id: req.id,
+      title: req.title,
+      description: req.description,
+      priority: req.priority,
+      status: req.status,
+      created_at: req.created_at,
+      completed_at: req.completed_at,
+      resident_name: req.residents?.full_name || 'Unknown Resident',
+      apartment_number: req.residents?.apartment_number || '?',
+      resident_phone: req.residents?.phone,
+      resident_email: req.residents?.email
+    }));
+
+    setRequests(formattedRequests);
+  } catch (err) {
+    console.error('Error:', err);
+    setRequests([]);
+  }
+};
   const refreshData = async () => {
     setRefreshing(true);
     if (building) {
