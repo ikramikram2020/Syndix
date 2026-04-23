@@ -5,7 +5,7 @@ import { T } from '../../styles/theme';
 import { 
   Wrench, Plus, AlertCircle, CheckCircle, Clock,
   Flame, Shield, Zap, ArrowLeft, X, Send,
-  Sparkles, Home, Calendar, MessageSquare, Eye
+  Sparkles, Calendar, MessageSquare, Eye, Home, User
 } from 'lucide-react';
 
 interface MaintenanceRequest {
@@ -45,7 +45,7 @@ export default function ResidentMaintenance() {
   const [buildingName, setBuildingName] = useState('');
   const [newNote, setNewNote] = useState('');
 
-  // Get resident from localStorage directly
+  // Get resident from localStorage
   useEffect(() => {
     const token = localStorage.getItem('resident_token');
     const residentData = localStorage.getItem('resident_data');
@@ -59,7 +59,7 @@ export default function ResidentMaintenance() {
       const resident = JSON.parse(residentData);
       setResident(resident);
       fetchRequests(resident.id);
-      fetchBuildingName(resident.apartment_number);
+      fetchBuildingName(resident.apartment_number, resident.id);
     } catch (err) {
       console.error('Error parsing resident:', err);
       setLoading(false);
@@ -67,39 +67,56 @@ export default function ResidentMaintenance() {
     }
   }, []);
 
-  const fetchBuildingName = async (apartmentNumber: string) => {
-    if (!apartmentNumber) return;
-    
-    const { data: apartment } = await supabase
-      .from('apartments')
-      .select('buildings(name)')
-      .eq('apartment_number', apartmentNumber)
-      .single();
-    
-    if (apartment?.buildings) {
-      setBuildingName((apartment.buildings as any).name);
+  const fetchBuildingName = async (apartmentNumber: string, residentId: string) => {
+    try {
+      // First get the apartment to find building_id
+      const { data: apartment, error: aptError } = await supabase
+        .from('apartments')
+        .select('building_id')
+        .eq('apartment_number', apartmentNumber)
+        .single();
+      
+      if (aptError) throw aptError;
+      
+      if (apartment?.building_id) {
+        const { data: building, error: buildingError } = await supabase
+          .from('buildings')
+          .select('name')
+          .eq('id', apartment.building_id)
+          .single();
+        
+        if (!buildingError && building) {
+          setBuildingName(building.name);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching building:', err);
     }
   };
 
   const fetchRequests = async (residentId: string) => {
     setLoading(true);
     
-    const { data, error } = await supabase
-      .from('maintenance_requests')
-      .select('*')
-      .eq('resident_id', residentId)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching requests:', error);
-    } else {
+    try {
+      const { data, error } = await supabase
+        .from('maintenance_requests')
+        .select('*')
+        .eq('resident_id', residentId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
       setRequests(data || []);
+      
       // Fetch notes for each request
       if (data && data.length > 0) {
         await fetchNotesForRequests(data.map(r => r.id));
       }
+    } catch (err) {
+      console.error('Error fetching requests:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const fetchNotesForRequests = async (requestIds: string[]) => {
@@ -134,32 +151,74 @@ export default function ResidentMaintenance() {
 
     setSubmitting(true);
     
-    const { data: apartment } = await supabase
-      .from('apartments')
-      .select('building_id, apartment_number')
-      .eq('apartment_number', resident.apartment_number)
-      .single();
+    try {
+      // Get building_id from the resident's apartment
+      const { data: apartment, error: aptError } = await supabase
+        .from('apartments')
+        .select('building_id')
+        .eq('apartment_number', resident.apartment_number)
+        .single();
 
-    const { error } = await supabase
-      .from('maintenance_requests')
-      .insert([{
-        resident_id: resident.id,
-        building_id: apartment?.building_id,
-        title: formData.title,
-        description: formData.description,
-        priority: formData.priority,
-        status: 'pending'
-      }]);
+      if (aptError) throw aptError;
 
-    if (error) {
-      alert('Error: ' + error.message);
-    } else {
+      if (!apartment?.building_id) {
+        throw new Error('Building not found for this apartment');
+      }
+
+      // Insert maintenance request with building_id
+      const { data: newRequest, error: insertError } = await supabase
+        .from('maintenance_requests')
+        .insert([{
+          resident_id: resident.id,
+          building_id: apartment.building_id,
+          title: formData.title,
+          description: formData.description,
+          priority: formData.priority,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        }])
+        .select();
+
+      if (insertError) throw insertError;
+
+      // Get building name for notification
+      const { data: building } = await supabase
+        .from('buildings')
+        .select('syndic_id, name')
+        .eq('id', apartment.building_id)
+        .single();
+
+      // Create notification for syndic
+      if (building?.syndic_id) {
+        await supabase
+          .from('notifications')
+          .insert([{
+            user_id: building.syndic_id,
+            title: '🔧 New Maintenance Request',
+            message: `${resident.full_name || 'Resident'} from ${building.name} submitted a ${formData.priority} priority request: ${formData.title}`,
+            type: 'maintenance',
+            read: false,
+            created_at: new Date().toISOString(),
+            data: JSON.stringify({
+              request_id: newRequest?.[0]?.id,
+              title: formData.title,
+              priority: formData.priority,
+              resident_name: resident.full_name
+            })
+          }]);
+      }
+
       setShowForm(false);
       setFormData({ title: '', description: '', priority: 'medium' });
       await fetchRequests(resident.id);
       alert('✅ Maintenance request submitted! The syndic has been notified.');
+      
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error: ' + (err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const sendMessage = async () => {
@@ -179,7 +238,8 @@ export default function ResidentMaintenance() {
     } else {
       setNewNote('');
       await fetchNotesForRequests([showDetails.id]);
-      // Refresh the notes display
+      
+      // Refresh notes for the current request
       const updatedNotes = await supabase
         .from('maintenance_notes')
         .select('*')
@@ -191,6 +251,34 @@ export default function ResidentMaintenance() {
           ...prev,
           [showDetails.id]: updatedNotes.data as RequestNote[]
         }));
+      }
+      
+      // Notify syndic about new message
+      const { data: apartment } = await supabase
+        .from('apartments')
+        .select('building_id')
+        .eq('apartment_number', resident.apartment_number)
+        .single();
+      
+      if (apartment?.building_id) {
+        const { data: building } = await supabase
+          .from('buildings')
+          .select('syndic_id')
+          .eq('id', apartment.building_id)
+          .single();
+        
+        if (building?.syndic_id) {
+          await supabase
+            .from('notifications')
+            .insert([{
+              user_id: building.syndic_id,
+              title: '💬 New Message on Maintenance Request',
+              message: `${resident.full_name} added a comment on request: ${showDetails.title}`,
+              type: 'maintenance',
+              read: false,
+              created_at: new Date().toISOString()
+            }]);
+        }
       }
     }
   };
@@ -206,21 +294,21 @@ export default function ResidentMaintenance() {
 
   const getPriorityStyle = (priority: string) => {
     switch(priority) {
-      case 'emergency': return { bg: T.redLight, text: T.red };
-      case 'high': return { bg: T.orangeLight, text: T.orangeDeep };
-      case 'medium': return { bg: '#FEF9C3', text: '#854D0E' };
-      default: return { bg: T.tealLight, text: T.teal };
+      case 'emergency': return { bg: '#FEE2E2', text: '#DC2626' };
+      case 'high': return { bg: '#FFEDD5', text: '#EA580C' };
+      case 'medium': return { bg: '#FEF9C3', text: '#CA8A04' };
+      default: return { bg: '#E0F2FE', text: '#0284C7' };
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch(status) {
       case 'completed': 
-        return { bg: T.greenLight, text: T.green, icon: CheckCircle, label: 'Completed' };
+        return { bg: '#D1FAE5', text: '#059669', icon: CheckCircle, label: 'Completed' };
       case 'in_progress': 
-        return { bg: '#DBEAFE', text: '#1E40AF', icon: Zap, label: 'In Progress' };
+        return { bg: '#DBEAFE', text: '#2563EB', icon: Zap, label: 'In Progress' };
       default: 
-        return { bg: '#FEF3C7', text: '#92400E', icon: Clock, label: 'Pending' };
+        return { bg: '#FEF3C7', text: '#D97706', icon: Clock, label: 'Pending' };
     }
   };
 
@@ -229,7 +317,7 @@ export default function ResidentMaintenance() {
       case 'pending':
         return 'Your request has been submitted and is waiting for review.';
       case 'in_progress':
-        return 'A technician has been assigned to your request.';
+        return 'A technician has been assigned to your request. The syndic is working on it.';
       case 'completed':
         return 'Your request has been completed. Thank you for your patience.';
       default:
@@ -255,7 +343,7 @@ export default function ResidentMaintenance() {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#fff' }}>Loading maintenance requests...</p>
+          <p style={{ color: '#fff' }}>Loading your requests...</p>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
@@ -276,25 +364,18 @@ export default function ResidentMaintenance() {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateX(-20px); }
-          to { opacity: 1; transform: translateX(0); }
-        }
         @keyframes slideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
         .fade-in-up {
           animation: fadeInUp 0.5s ease both;
         }
-        .slide-in {
-          animation: slideIn 0.4s ease both;
-        }
         .slide-up {
           animation: slideUp 0.3s ease-out;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
         .card-hover {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -339,9 +420,9 @@ export default function ResidentMaintenance() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Sparkles size={14} color={T.orange} />
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>SERVICE REQUESTS</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>MAINTENANCE</span>
                 </div>
-                <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Maintenance</h1>
+                <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Service Requests</h1>
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{buildingName || 'Your Building'}</p>
               </div>
             </div>
@@ -450,9 +531,9 @@ export default function ResidentMaintenance() {
                   onClick={() => setShowDetails(req)}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                       <div style={{
-                        padding: '6px 10px',
+                        padding: '4px 10px',
                         borderRadius: 10,
                         background: priorityStyle.bg,
                         display: 'flex',
@@ -464,21 +545,24 @@ export default function ResidentMaintenance() {
                           {req.priority}
                         </span>
                       </div>
-                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.navy }}>{req.title}</h3>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '4px 10px',
+                        borderRadius: 20,
+                        background: status.bg
+                      }}>
+                        <StatusIcon size={10} color={status.text} />
+                        <span style={{ fontSize: 10, fontWeight: 600, color: status.text }}>{status.label}</span>
+                      </div>
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      background: status.bg
-                    }}>
-                      <StatusIcon size={10} color={status.text} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: status.text }}>{status.label}</span>
-                    </div>
+                    <span style={{ fontSize: 10, color: T.textSm }}>
+                      {new Date(req.created_at).toLocaleDateString()}
+                    </span>
                   </div>
                   
+                  <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: T.navy }}>{req.title}</h3>
                   <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>
                     {req.description.length > 100 ? req.description.substring(0, 100) + '...' : req.description}
                   </p>
@@ -498,7 +582,7 @@ export default function ResidentMaintenance() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Eye size={12} color={T.teal} />
-                      <span style={{ fontSize: 11, color: T.teal }}>Tap for details</span>
+                      <span style={{ fontSize: 11, color: T.teal }}>View details</span>
                     </div>
                   </div>
                 </div>
@@ -580,6 +664,7 @@ export default function ResidentMaintenance() {
 
             {/* Request Details */}
             <div style={{ marginBottom: 20 }}>
+              <h4 style={{ margin: '0 0 8px', fontSize: 14, fontWeight: 600, color: T.navy }}>Description</h4>
               <p style={{ margin: 0, fontSize: 13, color: T.text, lineHeight: 1.5 }}>
                 {showDetails.description}
               </p>
@@ -591,52 +676,69 @@ export default function ResidentMaintenance() {
               </div>
             </div>
 
+            {/* Priority & Status Info */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+              <div style={{ flex: 1, background: T.surface, borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <p style={{ margin: '0 0 4px', fontSize: 11, color: T.textSm }}>Priority</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {getPriorityIcon(showDetails.priority)}
+                  <span style={{ fontSize: 13, fontWeight: 600, color: T.navy, textTransform: 'capitalize' }}>{showDetails.priority}</span>
+                </div>
+              </div>
+              <div style={{ flex: 1, background: T.surface, borderRadius: 12, padding: 12, textAlign: 'center' }}>
+                <p style={{ margin: '0 0 4px', fontSize: 11, color: T.textSm }}>Status</p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {getStatusBadge(showDetails.status).icon({ size: 14, color: getStatusBadge(showDetails.status).text })}
+                  <span style={{ fontSize: 13, fontWeight: 600, color: getStatusBadge(showDetails.status).text }}>
+                    {getStatusBadge(showDetails.status).label}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Messages Section */}
-            {(notes[showDetails.id]?.length > 0 || true) && (
+            {(notes[showDetails.id]?.length > 0) && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <MessageSquare size={14} color={T.teal} />
-                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>Messages</h4>
+                  <h4 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>Messages ({notes[showDetails.id]?.length || 0})</h4>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {notes[showDetails.id]?.map((note) => (
                     <div key={note.id} style={{
                       background: note.sender_type === 'syndic' ? T.tealLight : T.surface,
                       borderRadius: 12,
-                      padding: 10,
+                      padding: 12,
                       marginLeft: note.sender_type === 'syndic' ? 0 : 20,
                       marginRight: note.sender_type === 'syndic' ? 20 : 0
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 10, fontWeight: 600, color: note.sender_type === 'syndic' ? T.teal : T.orange }}>
-                          {note.sender_type === 'syndic' ? 'Syndic' : 'You'}
+                          {note.sender_type === 'syndic' ? '📋 Syndic' : '👤 You'}
                         </span>
                         <span style={{ fontSize: 9, color: T.textSm }}>
                           {new Date(note.created_at).toLocaleString()}
                         </span>
                       </div>
-                      <p style={{ margin: 0, fontSize: 12, color: T.text }}>{note.message}</p>
+                      <p style={{ margin: 0, fontSize: 12, color: T.text, lineHeight: 1.4 }}>{note.message}</p>
                     </div>
                   ))}
-                  {(!notes[showDetails.id] || notes[showDetails.id].length === 0) && (
-                    <p style={{ fontSize: 12, color: T.textSm, textAlign: 'center' }}>No messages yet</p>
-                  )}
                 </div>
               </div>
             )}
 
             {/* Send Message */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 8 }}>Send a message</label>
+            <div>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 8 }}>Send a message to syndic</label>
               <div style={{ display: 'flex', gap: 10 }}>
                 <textarea
-                  rows={2}
+                  rows={3}
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Ask for an update or provide more information..."
                   style={{
                     flex: 1,
-                    padding: '10px 12px',
+                    padding: '12px',
                     border: `1px solid ${T.border}`,
                     borderRadius: 12,
                     fontSize: 13,
@@ -651,15 +753,16 @@ export default function ResidentMaintenance() {
                   onClick={sendMessage}
                   disabled={!newNote.trim()}
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     borderRadius: 12,
                     background: newNote.trim() ? T.orange : T.textSm,
                     border: 'none',
                     cursor: newNote.trim() ? 'pointer' : 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    transition: 'all 0.2s'
                   }}
                 >
                   <Send size={18} color="#fff" />
@@ -671,6 +774,7 @@ export default function ResidentMaintenance() {
               onClick={() => setShowDetails(null)}
               style={{
                 width: '100%',
+                marginTop: 16,
                 padding: '12px',
                 background: 'transparent',
                 border: `1px solid ${T.border}`,
