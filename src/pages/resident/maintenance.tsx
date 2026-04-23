@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { useResidentAuth } from '../../hooks/useResidentAuth';
 import { T } from '../../styles/theme';
 import { 
   Wrench, Plus, AlertCircle, CheckCircle, Clock,
@@ -31,7 +30,7 @@ interface RequestNote {
 
 export default function ResidentMaintenance() {
   const router = useRouter();
-  const { resident, loading: authLoading } = useResidentAuth();
+  const [resident, setResident] = useState<any>(null);
   const [requests, setRequests] = useState<MaintenanceRequest[]>([]);
   const [notes, setNotes] = useState<Record<string, RequestNote[]>>({});
   const [loading, setLoading] = useState(true);
@@ -46,20 +45,35 @@ export default function ResidentMaintenance() {
   const [buildingName, setBuildingName] = useState('');
   const [newNote, setNewNote] = useState('');
 
+  // Get resident from localStorage directly
   useEffect(() => {
-    if (!authLoading && resident?.id) {
-      fetchRequests();
-      fetchBuildingName();
+    const token = localStorage.getItem('resident_token');
+    const residentData = localStorage.getItem('resident_data');
+    
+    if (!token || !residentData) {
+      router.push('/resident');
+      return;
     }
-  }, [authLoading, resident]);
+    
+    try {
+      const resident = JSON.parse(residentData);
+      setResident(resident);
+      fetchRequests(resident.id);
+      fetchBuildingName(resident.apartment_number);
+    } catch (err) {
+      console.error('Error parsing resident:', err);
+      setLoading(false);
+      router.push('/resident');
+    }
+  }, []);
 
-  const fetchBuildingName = async () => {
-    if (!resident?.apartment_number) return;
+  const fetchBuildingName = async (apartmentNumber: string) => {
+    if (!apartmentNumber) return;
     
     const { data: apartment } = await supabase
       .from('apartments')
       .select('buildings(name)')
-      .eq('apartment_number', resident.apartment_number)
+      .eq('apartment_number', apartmentNumber)
       .single();
     
     if (apartment?.buildings) {
@@ -67,14 +81,13 @@ export default function ResidentMaintenance() {
     }
   };
 
-  const fetchRequests = async () => {
-    if (!resident?.id) return;
+  const fetchRequests = async (residentId: string) => {
     setLoading(true);
     
     const { data, error } = await supabase
       .from('maintenance_requests')
       .select('*')
-      .eq('resident_id', resident.id)
+      .eq('resident_id', residentId)
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -114,18 +127,23 @@ export default function ResidentMaintenance() {
       return;
     }
 
+    if (!resident?.apartment_number) {
+      alert('Resident apartment information not found');
+      return;
+    }
+
     setSubmitting(true);
     
     const { data: apartment } = await supabase
       .from('apartments')
       .select('building_id, apartment_number')
-      .eq('apartment_number', resident?.apartment_number)
+      .eq('apartment_number', resident.apartment_number)
       .single();
 
     const { error } = await supabase
       .from('maintenance_requests')
       .insert([{
-        resident_id: resident?.id,
+        resident_id: resident.id,
         building_id: apartment?.building_id,
         title: formData.title,
         description: formData.description,
@@ -138,14 +156,14 @@ export default function ResidentMaintenance() {
     } else {
       setShowForm(false);
       setFormData({ title: '', description: '', priority: 'medium' });
-      await fetchRequests();
+      await fetchRequests(resident.id);
       alert('✅ Maintenance request submitted! The syndic has been notified.');
     }
     setSubmitting(false);
   };
 
   const sendMessage = async () => {
-    if (!newNote.trim() || !showDetails) return;
+    if (!newNote.trim() || !showDetails || !resident) return;
     
     const { error } = await supabase
       .from('maintenance_notes')
@@ -153,7 +171,7 @@ export default function ResidentMaintenance() {
         request_id: showDetails.id,
         message: newNote,
         sender_type: 'resident',
-        sender_id: resident?.id
+        sender_id: resident.id
       }]);
 
     if (error) {
@@ -226,7 +244,7 @@ export default function ResidentMaintenance() {
     completed: requests.filter(r => r.status === 'completed').length
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -235,7 +253,10 @@ export default function ResidentMaintenance() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#fff' }}>Loading maintenance requests...</p>
+        </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -262,6 +283,9 @@ export default function ResidentMaintenance() {
         @keyframes slideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
         .fade-in-up {
           animation: fadeInUp 0.5s ease both;
@@ -409,7 +433,6 @@ export default function ResidentMaintenance() {
               const StatusIcon = status.icon;
               const priorityStyle = getPriorityStyle(req.priority);
               const isPending = req.status === 'pending';
-              const requestNotes = notes[req.id] || [];
               
               return (
                 <div 
