@@ -48,6 +48,7 @@ const withPWA = require('next-pwa')({
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // NO turbopack config needed for Next.js 15
 };
 
 module.exports = withPWA(nextConfig);
