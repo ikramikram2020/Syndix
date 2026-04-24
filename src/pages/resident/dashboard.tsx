@@ -6,7 +6,7 @@ import {
   Home, CreditCard, Wrench, Bell, User, LogOut, 
   DollarSign, Calendar, TrendingUp, CheckCircle, Shield,
   Sparkles, ArrowRight, Eye, Zap, Star, Award,
-  Clock, ChevronRight
+  Clock, ChevronRight, Ticket, MessageCircle, HelpCircle
 } from 'lucide-react';
 
 export default function ResidentDashboard() {
@@ -16,6 +16,11 @@ export default function ResidentDashboard() {
   const [buildingName, setBuildingName] = useState('');
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
+  const [ticketStats, setTicketStats] = useState({
+    pending: 0,
+    inProgress: 0,
+    resolved: 0
+  });
   const [stats, setStats] = useState({
     dueAmount: 0,
     lastPayment: null as string | null,
@@ -45,6 +50,7 @@ export default function ResidentDashboard() {
         }
         
         await fetchDashboardStats();
+        await fetchTicketStats();
       } catch (error) {
         console.error('Dashboard initialization error:', error);
       } finally {
@@ -60,6 +66,30 @@ export default function ResidentDashboard() {
       isMounted = false;
     };
   }, []);
+
+  const fetchTicketStats = async () => {
+    try {
+      const residentData = localStorage.getItem('resident_data');
+      if (!residentData) return;
+      
+      const resident = JSON.parse(residentData);
+      
+      const { data: tickets } = await supabase
+        .from('tickets')
+        .select('status')
+        .eq('resident_id', resident.id);
+      
+      if (tickets) {
+        setTicketStats({
+          pending: tickets.filter(t => t.status === 'pending').length,
+          inProgress: tickets.filter(t => t.status === 'in_progress').length,
+          resolved: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching ticket stats:', err);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -104,7 +134,7 @@ export default function ResidentDashboard() {
         .eq('status', 'paid')
         .order('paid_at', { ascending: false })
         .limit(1)
-        .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+        .maybeSingle();
       
       if (lastPaymentError) {
         console.error('Last payment fetch error:', lastPaymentError);
@@ -131,6 +161,7 @@ export default function ResidentDashboard() {
     { id: 'home', label: 'Home', icon: Home, href: '/resident/dashboard' },
     { id: 'payments', label: 'Payments', icon: CreditCard, href: '/resident/payments' },
     { id: 'maintenance', label: 'Requests', icon: Wrench, href: '/resident/maintenance' },
+    { id: 'tickets', label: 'Tickets', icon: Ticket, href: '/resident/tickets' },
     { id: 'profile', label: 'Profile', icon: User, href: '/resident/profile' },
   ];
 
@@ -141,9 +172,10 @@ export default function ResidentDashboard() {
   ];
 
   const recentActivity = [
-    { icon: CreditCard, label: 'Payment Received', date: '2 days ago', amount: '25,000 DZD', color: T.green },
-    { icon: Wrench, label: 'Maintenance Request', date: '5 days ago', status: 'In Progress', color: T.orange },
-    { icon: Bell, label: 'Announcement', date: '1 week ago', title: 'Building Maintenance', color: T.teal },
+    { icon: CreditCard, label: 'Payment Received', date: '2 days ago', amount: '25,000 DZD', color: T.green, href: '/resident/payments' },
+    { icon: Wrench, label: 'Maintenance Request', date: '5 days ago', status: 'In Progress', color: T.orange, href: '/resident/maintenance' },
+    { icon: Ticket, label: 'Support Ticket', date: '3 days ago', status: 'Pending', color: T.purple || '#8B5CF6', href: '/resident/tickets' },
+    { icon: Bell, label: 'Announcement', date: '1 week ago', title: 'Building Maintenance', color: T.teal, href: '/resident/announcements' },
   ];
 
   if (loading) {
@@ -202,7 +234,7 @@ export default function ResidentDashboard() {
         }
       `}</style>
 
-      {/* Header - Darker Blue Gradient */}
+      {/* Header */}
       <div style={{
         background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
         padding: '24px 20px 48px',
@@ -299,10 +331,8 @@ export default function ResidentDashboard() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div style={{ padding: '24px 20px' }}>
-        
-        {/* Quick Actions Grid */}
+      {/* Quick Actions Section */}
+      <div style={{ padding: '24px 20px 0' }}>
         <div className="fade-in-up" style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0A1A3E' }}>Quick Actions</h3>
@@ -311,9 +341,9 @@ export default function ResidentDashboard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
             {[
               { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.green, gradient: `linear-gradient(135deg, ${T.green}, ${T.greenLight})` },
-              { icon: Wrench, label: 'Report', href: '/resident/maintenance', color: T.orange, gradient: `linear-gradient(135deg, ${T.orange}, ${T.orangeLight})` },
+              { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange, gradient: `linear-gradient(135deg, ${T.orange}, ${T.orangeLight})` },
+              { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: '#8B5CF6', gradient: `linear-gradient(135deg, #8B5CF6, #A78BFA)` },
               { icon: Bell, label: 'News', href: '/resident/announcements', color: T.teal, gradient: `linear-gradient(135deg, ${T.teal}, ${T.tealLight})` },
-              { icon: Shield, label: 'Support', href: '/resident/help', color: T.navy, gradient: `linear-gradient(135deg, #0A1A3E, #0D2B5E)` },
             ].map((action) => {
               const Icon = action.icon;
               return (
@@ -338,14 +368,75 @@ export default function ResidentDashboard() {
             })}
           </div>
         </div>
+      </div>
 
-        {/* Recent Activity */}
+      {/* Ticket Summary Card */}
+      <div style={{ padding: '0 20px' }}>
+        <div className="fade-in-up" style={{ marginBottom: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0A1A3E' }}>Support Tickets</h3>
+            <button 
+              onClick={() => router.push('/resident/tickets')}
+              style={{ fontSize: 12, color: T.teal, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              View All <ArrowRight size={12} />
+            </button>
+          </div>
+          <div style={{
+            background: `linear-gradient(135deg, #8B5CF6, #7C3AED)`,
+            borderRadius: 24,
+            padding: 20,
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.1)' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+              <div style={{ display: 'flex', gap: 24 }}>
+                <div>
+                  <Ticket size={24} color="#fff" style={{ marginBottom: 8 }} />
+                  <p style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#fff' }}>{ticketStats.pending + ticketStats.inProgress + ticketStats.resolved}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Total Tickets</p>
+                </div>
+                <div>
+                  <Clock size={20} color="#FCD34D" style={{ marginBottom: 8 }} />
+                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#FCD34D' }}>{ticketStats.pending}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Open</p>
+                </div>
+                <div>
+                  <CheckCircle size={20} color="#34D399" style={{ marginBottom: 8 }} />
+                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#34D399' }}>{ticketStats.resolved}</p>
+                  <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>Resolved</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/resident/tickets')}
+                style={{
+                  padding: '10px 18px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: 'none',
+                  borderRadius: 30,
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                New Ticket <MessageCircle size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div style={{ padding: '0 20px' }}>
         <div className="fade-in-up" style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#0A1A3E' }}>Recent Activity</h3>
-            <button style={{ fontSize: 12, color: T.teal, background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-              View All <ArrowRight size={12} />
-            </button>
+            <span style={{ fontSize: 11, color: T.textSm }}>Last updates</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {recentActivity.map((activity, index) => {
@@ -364,10 +455,7 @@ export default function ResidentDashboard() {
                     gap: 14,
                     cursor: 'pointer'
                   }}
-                  onClick={() => {
-                    if (activity.label === 'Payment Received') router.push('/resident/payments');
-                    if (activity.label === 'Maintenance Request') router.push('/resident/maintenance');
-                  }}
+                  onClick={() => router.push(activity.href)}
                 >
                   <div style={{ width: 44, height: 44, borderRadius: 14, background: `${activity.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Icon size={20} color={activity.color} />
@@ -378,7 +466,7 @@ export default function ResidentDashboard() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     {activity.amount && <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: T.green }}>{activity.amount}</p>}
-                    {activity.status && <p style={{ margin: 0, fontSize: 11, color: T.orange }}>{activity.status}</p>}
+                    {activity.status && <p style={{ margin: 0, fontSize: 11, padding: '2px 8px', borderRadius: 12, background: `${activity.color}15`, color: activity.color }}>{activity.status}</p>}
                     {activity.title && <p style={{ margin: 0, fontSize: 12, color: T.textMd }}>{activity.title}</p>}
                   </div>
                   <ChevronRight size={16} color={T.textSm} />
@@ -387,8 +475,10 @@ export default function ResidentDashboard() {
             })}
           </div>
         </div>
+      </div>
 
-        {/* Premium Feature Card - Darker */}
+      {/* Premium Feature Card */}
+      <div style={{ padding: '0 20px 20px' }}>
         <div className="fade-in-up" style={{
           background: `linear-gradient(135deg, #050F24, #0A1A3E)`,
           borderRadius: 24,
@@ -418,7 +508,7 @@ export default function ResidentDashboard() {
         </div>
       </div>
 
-      {/* Bottom Tab Navigation - Darker Active Tab */}
+      {/* Bottom Tab Navigation */}
       <div style={{
         position: 'fixed',
         bottom: 0,
