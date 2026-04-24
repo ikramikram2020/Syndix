@@ -5,7 +5,7 @@ import { T } from '../../styles/theme';
 import { 
   Home, CreditCard, Wrench, Bell, User, LogOut, 
   DollarSign, CheckCircle, Shield, Sparkles, Star, Award,
-  Clock, ChevronRight, Ticket, Zap
+  Clock, ChevronRight, Ticket
 } from 'lucide-react';
 
 // ============================================
@@ -158,13 +158,13 @@ export default function ResidentDashboard() {
   // ============================================
   
   const quickActions = [
-    { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.navy, primary: true },
-    { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange, primary: false },
-    { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: T.teal, primary: false },
-    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.teal, primary: false }, // Changed to Teal
+    { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.green },
+    { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange },
+    { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: T.teal },
+    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.navy },
   ];
 
-  // Determine due amount styling
+  // Determine due amount styling (dynamic feedback)
   const dueAmountColor = stats.dueAmount > 0 ? T.orange : T.green;
   const dueAmountMessage = stats.dueAmount > 0 ? `${stats.dueAmount.toLocaleString()} DZD` : 'All clear ✅';
   
@@ -240,18 +240,15 @@ export default function ResidentDashboard() {
         <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         
         <div style={{ position: 'relative', zIndex: 2 }}>
-          {/* Header row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Sparkles size={14} color={T.orange} />
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>RESIDENT PORTAL</span>
               </div>
-              {/* Dynamic greeting */}
               <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#fff' }}>
                 {getGreeting()}, {residentName.split(' ')[0]}
               </h1>
-              {/* Personality-driven micro-copy */}
               <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
                 {getStatusMessage()}
               </p>
@@ -275,7 +272,7 @@ export default function ResidentDashboard() {
             </button>
           </div>
 
-          {/* Building Info Card - Glass effect */}
+          {/* Building Info Card */}
           <div style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(10px)',
@@ -299,7 +296,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          STATS CARDS - Dynamic colors (DZD currency)
+          STATS CARDS - Improved design with DZD
       ============================================ */}
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
@@ -309,12 +306,15 @@ export default function ResidentDashboard() {
           <div className="fade-in-up card-hover" style={{ 
             background: T.navy, 
             borderRadius: 20, 
-            padding: '16px',
+            padding: '18px 16px',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <DollarSign size={20} color={dueAmountColor} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Due Amount</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: dueAmountColor }}>{dueAmountMessage}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <DollarSign size={22} color={dueAmountColor} />
+              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>DZD</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Due Amount</p>
+            <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 700, color: dueAmountColor }}>{dueAmountMessage}</p>
             {stats.dueAmount === 0 && (
               <p style={{ margin: '6px 0 0', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>No outstanding fees</p>
             )}
@@ -329,9 +329,12 @@ export default function ResidentDashboard() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <CheckCircle size={18} color={T.green} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: T.textSm }}>Paid Invoices</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.navy }}>{stats.paidCount}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <CheckCircle size={18} color={T.green} />
+              <span style={{ fontSize: 9, color: T.textSm }}>DZD</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Paid Invoices</p>
+            <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 700, color: T.navy }}>{stats.paidCount}</p>
           </div>
           
           {/* Secondary Card - Pending */}
@@ -343,15 +346,18 @@ export default function ResidentDashboard() {
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <Clock size={18} color={T.orange} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: T.textSm }}>Pending</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.navy }}>{stats.pendingCount}</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Clock size={18} color={T.orange} />
+              <span style={{ fontSize: 9, color: T.textSm }}>DZD</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Pending</p>
+            <p style={{ margin: '4px 0 0', fontSize: 24, fontWeight: 700, color: T.navy }}>{stats.pendingCount}</p>
           </div>
         </div>
       </div>
 
       {/* ============================================
-          QUICK ACTIONS - Pay Fees primary
+          QUICK ACTIONS - Improved button design
       ============================================ */}
       
       <div style={{ padding: '24px 20px 0' }}>
@@ -370,18 +376,18 @@ export default function ResidentDashboard() {
                   onClick={() => router.push(action.href)}
                   className="card-hover"
                   style={{
-                    background: action.primary ? T.navy : action.color,
+                    background: action.color,
                     border: 'none',
                     borderRadius: 16,
-                    padding: action.primary ? '14px 8px' : '12px 8px',
+                    padding: '14px 6px',
                     textAlign: 'center',
                     cursor: 'pointer',
-                    boxShadow: action.primary ? '0 4px 12px rgba(28,43,107,0.3)' : 'none',
-                    transition: 'transform 0.1s ease'
+                    transition: 'transform 0.1s ease',
+                    boxShadow: action.label === 'Pay Fees' ? '0 4px 12px rgba(0,196,140,0.3)' : 'none'
                   }}
                 >
-                  <Icon size={action.primary ? 22 : 20} color="#fff" style={{ margin: '0 auto 6px' }} />
-                  <p style={{ margin: 0, fontSize: action.primary ? 12 : 11, fontWeight: action.primary ? 600 : 500, color: '#fff' }}>
+                  <Icon size={22} color="#fff" style={{ margin: '0 auto 8px' }} />
+                  <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: '#fff', letterSpacing: '0.3px' }}>
                     {action.label}
                   </p>
                 </button>
@@ -392,7 +398,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          TICKETS CARD - Vertical layout
+          TICKETS CARD - Improved layout
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -419,21 +425,21 @@ export default function ResidentDashboard() {
             <div style={{ position: 'relative', zIndex: 2 }}>
               {/* Total Tickets - Top */}
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <Ticket size={24} color="#fff" style={{ margin: '0 auto 6px' }} />
-                <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: '#fff' }}>{ticketStats.pending + ticketStats.resolved}</p>
+                <Ticket size={28} color="#fff" style={{ margin: '0 auto 8px' }} />
+                <p style={{ margin: 0, fontSize: 36, fontWeight: 700, color: '#fff' }}>{ticketStats.pending + ticketStats.resolved}</p>
                 <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Total Tickets</p>
               </div>
               
               {/* Open / Resolved - 2 columns */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16, textAlign: 'center' }}>
-                <div>
-                  <Clock size={18} color={T.orange} style={{ margin: '0 auto 4px' }} />
-                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: T.orange }}>{ticketStats.pending}</p>
+                <div style={{ padding: '8px', borderRadius: 12, background: 'rgba(255,255,255,0.1)' }}>
+                  <Clock size={20} color={T.orange} style={{ margin: '0 auto 6px' }} />
+                  <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: T.orange }}>{ticketStats.pending}</p>
                   <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>Open</p>
                 </div>
-                <div>
-                  <CheckCircle size={18} color={T.green} style={{ margin: '0 auto 4px' }} />
-                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: T.green }}>{ticketStats.resolved}</p>
+                <div style={{ padding: '8px', borderRadius: 12, background: 'rgba(255,255,255,0.1)' }}>
+                  <CheckCircle size={20} color={T.green} style={{ margin: '0 auto 6px' }} />
+                  <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: T.green }}>{ticketStats.resolved}</p>
                   <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>Resolved</p>
                 </div>
               </div>
@@ -441,19 +447,20 @@ export default function ResidentDashboard() {
               {/* Button - Full width */}
               <button
                 onClick={() => router.push('/resident/tickets')}
+                className="card-hover"
                 style={{
                   width: '100%',
-                  padding: '10px',
-                  background: 'rgba(255,255,255,0.15)',
+                  padding: '12px',
+                  background: 'rgba(255,255,255,0.2)',
                   border: 'none',
                   borderRadius: 30,
                   color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 500,
+                  fontSize: 13,
+                  fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'transform 0.1s ease'
+                  transition: 'transform 0.1s ease',
+                  marginTop: 8
                 }}
-                className="card-hover"
               >
                 + New Ticket
               </button>
@@ -463,7 +470,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          RECENT ACTIVITY - Dynamic, borderless, lighter
+          RECENT ACTIVITY - Dynamic based on real data
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -474,7 +481,6 @@ export default function ResidentDashboard() {
           </div>
           
           {(stats.pendingCount === 0 && ticketStats.pending === 0 && stats.paidCount === 0) ? (
-            // Empty State
             <div style={{
               background: T.white,
               borderRadius: 16,
@@ -482,39 +488,37 @@ export default function ResidentDashboard() {
               textAlign: 'center',
               border: `1px solid ${T.border}`
             }}>
-              <Zap size={32} color={T.textSm} style={{ margin: '0 auto 12px' }} />
+              <Shield size={32} color={T.textSm} style={{ margin: '0 auto 12px' }} />
               <p style={{ margin: 0, fontSize: 13, color: T.textMd }}>No recent activity yet</p>
               <p style={{ margin: '4px 0 0', fontSize: 11, color: T.textSm }}>Your activity will appear here</p>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {/* Dynamic activity based on actual data */}
               {stats.pendingCount > 0 && (
                 <div 
                   className="card-hover"
                   style={{
-                    background: 'transparent',
-                    borderRadius: 12,
-                    padding: '10px 12px',
+                    background: T.white,
+                    borderRadius: 14,
+                    padding: '12px 14px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    transition: 'background 0.2s ease'
+                    border: `1px solid ${T.border}`,
+                    transition: 'transform 0.1s ease'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   onClick={() => router.push('/resident/payments')}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.orangeLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <DollarSign size={16} color={T.orange} />
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.orangeLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={20} color={T.orange} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>Pending Payment</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>You have {stats.pendingCount} unpaid invoice{stats.pendingCount > 1 ? 's' : ''}</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>Pending Payment</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: T.textSm }}>You have {stats.pendingCount} unpaid invoice{stats.pendingCount > 1 ? 's' : ''}</p>
                   </div>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: T.orange }}>{stats.dueAmount.toLocaleString()} DZD</p>
-                  <ChevronRight size={14} color={T.textSm} />
+                  <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: T.orange }}>{stats.dueAmount.toLocaleString()} DZD</p>
+                  <ChevronRight size={16} color={T.textSm} />
                 </div>
               )}
               
@@ -522,27 +526,26 @@ export default function ResidentDashboard() {
                 <div 
                   className="card-hover"
                   style={{
-                    background: 'transparent',
-                    borderRadius: 12,
-                    padding: '10px 12px',
+                    background: T.white,
+                    borderRadius: 14,
+                    padding: '12px 14px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    transition: 'background 0.2s ease'
+                    border: `1px solid ${T.border}`,
+                    transition: 'transform 0.1s ease'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   onClick={() => router.push('/resident/tickets')}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.tealLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ticket size={16} color={T.teal} />
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.tealLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ticket size={20} color={T.teal} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>Open Tickets</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>{ticketStats.pending} ticket{ticketStats.pending > 1 ? 's' : ''} awaiting response</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>Open Tickets</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: T.textSm }}>{ticketStats.pending} ticket{ticketStats.pending > 1 ? 's' : ''} awaiting response</p>
                   </div>
-                  <ChevronRight size={14} color={T.textSm} />
+                  <ChevronRight size={16} color={T.textSm} />
                 </div>
               )}
               
@@ -550,27 +553,26 @@ export default function ResidentDashboard() {
                 <div 
                   className="card-hover"
                   style={{
-                    background: 'transparent',
-                    borderRadius: 12,
-                    padding: '10px 12px',
+                    background: T.white,
+                    borderRadius: 14,
+                    padding: '12px 14px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    transition: 'background 0.2s ease'
+                    border: `1px solid ${T.border}`,
+                    transition: 'transform 0.1s ease'
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   onClick={() => router.push('/resident/payments')}
                 >
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <CheckCircle size={16} color={T.green} />
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle size={20} color={T.green} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>All caught up</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>All payments are up to date</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: T.navy }}>All caught up</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 11, color: T.textSm }}>All payments are up to date</p>
                   </div>
-                  <ChevronRight size={14} color={T.textSm} />
+                  <ChevronRight size={16} color={T.textSm} />
                 </div>
               )}
             </div>
@@ -579,7 +581,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          BOTTOM TAB NAVIGATION - Scale on active
+          BOTTOM TAB NAVIGATION - With scale effect
       ============================================ */}
       
       <div style={{
@@ -659,33 +661,33 @@ export default function ResidentDashboard() {
           <div style={{
             background: T.orange,
             borderRadius: 16,
-            padding: '12px 16px',
+            padding: '14px 18px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            boxShadow: '0 6px 20px rgba(0,0,0,0.15)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontSize: 20 }}>⚠️</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 24 }}>⚠️</span>
               <div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: '#fff' }}>You have unpaid fees</p>
-                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.9)' }}>{stats.dueAmount.toLocaleString()} DZD due</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#fff' }}>You have unpaid fees</p>
+                <p style={{ margin: '2px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.9)' }}>{stats.dueAmount.toLocaleString()} DZD due</p>
               </div>
             </div>
             <button
               onClick={() => router.push('/resident/payments')}
+              className="card-hover"
               style={{
-                padding: '6px 14px',
+                padding: '8px 20px',
                 background: '#fff',
                 border: 'none',
-                borderRadius: 20,
+                borderRadius: 30,
                 color: T.orange,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'transform 0.1s ease'
               }}
-              className="card-hover"
             >
               Pay Now
             </button>
