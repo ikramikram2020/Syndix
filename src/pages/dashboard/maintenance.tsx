@@ -55,7 +55,6 @@ export default function MaintenanceManagement() {
       return;
     }
     
-    // Get the building where this user is syndic
     const { data: buildingData, error: buildingError } = await supabase
       .from('buildings')
       .select('*')
@@ -94,27 +93,47 @@ export default function MaintenanceManagement() {
       }
       
       // Get unique resident IDs
-      const residentIds = [...new Set(requestsData.map(r => r.resident_id))];
+      const residentIds = [...new Set(requestsData.map(r => r.resident_id).filter(Boolean))];
       
-      // Fetch all residents in one query
+      if (residentIds.length === 0) {
+        const formattedRequests = requestsData.map((req: any) => ({
+          id: req.id,
+          title: req.title,
+          description: req.description,
+          priority: req.priority,
+          status: req.status,
+          created_at: req.created_at,
+          completed_at: req.completed_at,
+          resident_id: req.resident_id,
+          resident_name: 'Unknown',
+          apartment_number: '?',
+          resident_phone: null,
+          resident_email: null
+        }));
+        setRequests(formattedRequests);
+        setLoading(false);
+        return;
+      }
+      
+      // Fetch all residents
       const { data: residentsData } = await supabase
         .from('residents')
         .select('id, full_name, phone, email, apartment_number')
         .in('id', residentIds);
       
-      // Create a map for quick lookup
+      // Create resident map
       const residentMap = new Map();
-      residentsData?.forEach(r => {
-        residentMap.set(r.id, {
-          full_name: r.full_name,
-          apartment_number: r.apartment_number,
-          phone: r.phone,
-          email: r.email
+      residentsData?.forEach((resident: any) => {
+        residentMap.set(resident.id, {
+          full_name: resident.full_name,
+          apartment_number: resident.apartment_number || '?',
+          phone: resident.phone,
+          email: resident.email
         });
       });
       
-      // Format requests with resident info
-      const formattedRequests = requestsData.map(req => {
+      // Merge data
+      const formattedRequests = requestsData.map((req: any) => {
         const resident = residentMap.get(req.resident_id);
         return {
           id: req.id,
@@ -125,7 +144,7 @@ export default function MaintenanceManagement() {
           created_at: req.created_at,
           completed_at: req.completed_at,
           resident_id: req.resident_id,
-          resident_name: resident?.full_name || 'Loading...',
+          resident_name: resident?.full_name || 'Unknown',
           apartment_number: resident?.apartment_number || '?',
           resident_phone: resident?.phone,
           resident_email: resident?.email
@@ -133,6 +152,7 @@ export default function MaintenanceManagement() {
       });
       
       setRequests(formattedRequests);
+      
     } catch (err) {
       console.error('Error:', err);
       setRequests([]);
@@ -177,7 +197,6 @@ export default function MaintenanceManagement() {
     if (error) {
       alert('Error updating status: ' + error.message);
     } else {
-      // Update local state
       setRequests(prev => prev.map(r => 
         r.id === requestId ? { ...r, status: newStatus } : r
       ));
@@ -374,7 +393,7 @@ export default function MaintenanceManagement() {
                   <h3 style={{ margin:'0 0 8px', fontSize:16, fontWeight:700, color:T.navy }}>{req.title}</h3>
                   <p style={{ margin:'0 0 12px', fontSize:13, color:T.textMd, lineHeight:1.5 }}>{req.description.substring(0, 80)}...</p>
                   
-                  {/* Resident Info - Now shows correctly */}
+                  {/* Resident Info */}
                   <div style={{
                     background: T.surface,
                     borderRadius: 12,
@@ -401,7 +420,7 @@ export default function MaintenanceManagement() {
         )}
       </div>
 
-      {/* Request Details Modal */}
+      {/* Request Details Modal - Same as before */}
       {selectedRequest && (
         <>
           <div style={{ position:'fixed', inset:0, background:'rgba(5,15,36,0.5)', zIndex:90, backdropFilter:'blur(4px)' }} onClick={() => setSelectedRequest(null)} />
@@ -464,18 +483,12 @@ export default function MaintenanceManagement() {
             {/* Status Update Buttons */}
             <div style={{ display:'flex', gap:10, marginBottom:20 }}>
               {selectedRequest.status === 'pending' && (
-                <button 
-                  onClick={() => updateStatus(selectedRequest.id, 'in_progress')} 
-                  style={{ flex:1, padding:'12px', background:T.navy, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}
-                >
+                <button onClick={() => updateStatus(selectedRequest.id, 'in_progress')} style={{ flex:1, padding:'12px', background:T.navy, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                   Start Work
                 </button>
               )}
               {selectedRequest.status === 'in_progress' && (
-                <button 
-                  onClick={() => updateStatus(selectedRequest.id, 'completed')} 
-                  style={{ flex:1, padding:'12px', background:T.green, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}
-                >
+                <button onClick={() => updateStatus(selectedRequest.id, 'completed')} style={{ flex:1, padding:'12px', background:T.green, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                   Mark Complete
                 </button>
               )}
@@ -520,37 +533,8 @@ export default function MaintenanceManagement() {
             <div>
               <label style={{ display:'block', fontSize:13, fontWeight:600, color:T.textMd, marginBottom:8 }}>Send message to resident</label>
               <div style={{ display:'flex', gap:10 }}>
-                <textarea 
-                  rows={3} 
-                  value={newMessage} 
-                  onChange={(e) => setNewMessage(e.target.value)} 
-                  placeholder="Type your message here..." 
-                  style={{ 
-                    flex:1, 
-                    padding:'12px', 
-                    border:`1px solid ${T.border}`, 
-                    borderRadius:12, 
-                    fontSize:13, 
-                    fontFamily:'inherit', 
-                    outline:'none', 
-                    resize:'vertical' 
-                  }}
-                />
-                <button 
-                  onClick={sendMessage} 
-                  disabled={!newMessage.trim() || sending} 
-                  style={{ 
-                    width:48, 
-                    height:48, 
-                    borderRadius:12, 
-                    background: newMessage.trim() ? T.orange : T.textSm, 
-                    border:'none', 
-                    cursor: newMessage.trim() ? 'pointer' : 'not-allowed', 
-                    display:'flex', 
-                    alignItems:'center', 
-                    justifyContent:'center'
-                  }}
-                >
+                <textarea rows={3} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message here..." style={{ flex:1, padding:'12px', border:`1px solid ${T.border}`, borderRadius:12, fontSize:13, fontFamily:'inherit', outline:'none', resize:'vertical' }} />
+                <button onClick={sendMessage} disabled={!newMessage.trim() || sending} style={{ width:48, height:48, borderRadius:12, background: newMessage.trim() ? T.orange : T.textSm, border:'none', cursor: newMessage.trim() ? 'pointer' : 'not-allowed', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <Send size={18} color="#fff" />
                 </button>
               </div>
