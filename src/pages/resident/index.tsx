@@ -129,7 +129,7 @@ export default function ResidentLogin() {
   };
 
   // ============================================
-  // LOADING SCREEN (White, clean, minimal)
+  // LOADING SCREEN 
   // ============================================
   
   if (loading) {
