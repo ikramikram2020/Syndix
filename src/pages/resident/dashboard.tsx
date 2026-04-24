@@ -174,7 +174,7 @@ export default function ResidentDashboard() {
   const recentActivity = [
     { icon: CreditCard, label: 'Payment Received', date: '2 days ago', amount: '25,000 DZD', color: T.green, href: '/resident/payments' },
     { icon: Wrench, label: 'Maintenance Request', date: '5 days ago', status: 'In Progress', color: T.orange, href: '/resident/maintenance' },
-    { icon: Ticket, label: 'Support Ticket', date: '3 days ago', status: 'Pending', color: T.purple || '#8B5CF6', href: '/resident/tickets' },
+    { icon: Ticket, label: 'Support Ticket', date: '3 days ago', status: 'Pending', color: '#8B5CF6', href: '/resident/tickets' },
     { icon: Bell, label: 'Announcement', date: '1 week ago', title: 'Building Maintenance', color: T.teal, href: '/resident/announcements' },
   ];
 
