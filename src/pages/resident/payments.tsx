@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   CreditCard, CheckCircle, Clock, AlertCircle,
-  ArrowLeft, X, Lock, Wallet, Calendar
+  ArrowLeft, X, Lock, Wallet, Calendar, Sparkles
 } from 'lucide-react';
 
 // ============================================
@@ -182,7 +182,7 @@ export default function ResidentPayments() {
             .insert([{
               user_id: building.syndic_id,
               title: '💰 Payment Received',
-              message: `${resident.full_name || resident.name || 'Resident'} from ${building.name || 'your building'} paid ${payment.amount.toLocaleString()} DZD for ${new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`,
+              message: `${resident.full_name || resident.name || 'Resident'} from ${building.name || 'your building'} paid ${payment.amount.toLocaleString()} DZD`,
               type: 'payment',
               read: false,
               created_at: new Date().toISOString(),
@@ -205,8 +205,13 @@ export default function ResidentPayments() {
       // Step 5: Refresh payments list
       await fetchPayments(resident.id);
       
-      // Step 6: Show success message
-      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid. The syndic has been notified.`);
+      // Step 6: Force update local state to show paid immediately
+      setPayments(prev => prev.map(p => 
+        p.id === payment.id ? { ...p, status: 'paid', paid_at: new Date().toISOString() } : p
+      ));
+      
+      // Step 7: Show success message
+      alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid.`);
       setSelectedPayment(null);
       
     } catch (err) {
@@ -281,10 +286,6 @@ export default function ResidentPayments() {
 
   if (!resident) return null;
 
-  // ============================================
-  // MAIN RENDER
-  // ============================================
-  
   // Safe area bottom padding for mobile devices
   const safeBottomPadding = 'calc(100px + env(safe-area-inset-bottom))';
   
@@ -322,38 +323,51 @@ export default function ResidentPayments() {
       `}</style>
 
       {/* ============================================
-          HEADER SECTION
+          HEADER SECTION - Dark blue matching other pages
       ============================================ */}
       
       <div style={{
-        background: `linear-gradient(135deg, ${T.navy}, ${T.teal})`,
-        padding: '24px 20px 32px',
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 24
+        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
+        padding: '24px 20px 40px',
+        borderBottomLeftRadius: 32,
+        borderBottomRightRadius: 32,
+        position: 'relative',
+        overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* Back button */}
-          <button 
-            onClick={() => router.back()} 
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: 'rgba(255,255,255,0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              border: 'none'
-            }}
-          >
-            <ArrowLeft size={20} color="#fff" />
-          </button>
-          
-          {/* Title */}
-          <div>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Payments</h1>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>View and pay your monthly fees</p>
+        {/* Decorative background circles */}
+        <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Header row with back button and title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+            {/* Back button */}
+            <button 
+              onClick={() => router.back()} 
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <ArrowLeft size={20} color="#fff" />
+            </button>
+            
+            {/* Title area */}
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <Sparkles size={14} color={T.orange} />
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>FINANCIAL</span>
+              </div>
+              <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Payments</h1>
+              <p style={{ margin: '2px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>View and pay your monthly fees</p>
+            </div>
           </div>
         </div>
       </div>
@@ -362,7 +376,7 @@ export default function ResidentPayments() {
           STATISTICS CARDS - Payment summary
       ============================================ */}
       
-      <div style={{ padding: '0 16px', marginTop: -20 }}>
+      <div style={{ padding: '0 20px', marginTop: -30 }}>
         <div className="fade-in" style={{
           background: T.white,
           borderRadius: 20,
@@ -411,7 +425,7 @@ export default function ResidentPayments() {
           FILTER TABS - All, Pending, Paid
       ============================================ */}
       
-      <div style={{ padding: '20px 16px' }}>
+      <div style={{ padding: '20px 20px 0' }}>
         <div style={{ display: 'flex', gap: 8, background: T.white, borderRadius: 14, padding: 4, border: `1px solid ${T.border}` }}>
           {[
             { id: 'all', label: 'All', icon: null },
@@ -453,7 +467,7 @@ export default function ResidentPayments() {
           PAYMENTS LIST
       ============================================ */}
       
-      <div style={{ padding: '0 16px' }}>
+      <div style={{ padding: '20px' }}>
         {filteredPayments.length === 0 ? (
           // Empty State - No payments
           <div className="fade-in" style={{
@@ -551,8 +565,7 @@ export default function ResidentPayments() {
                           color: '#fff',
                           fontSize: 13,
                           fontWeight: 600,
-                          cursor: 'pointer',
-                          transition: 'transform 0.1s ease'
+                          cursor: 'pointer'
                         }}
                       >
                         Pay Now
@@ -570,7 +583,7 @@ export default function ResidentPayments() {
                     {/* Paid Date */}
                     {payment.status === 'paid' && payment.paid_at && (
                       <p style={{ margin: 0, fontSize: 11, color: T.green }}>
-                        Paid on {new Date(payment.paid_at).toLocaleDateString()}
+                        Paid {new Date(payment.paid_at).toLocaleDateString()}
                       </p>
                     )}
                   </div>
@@ -610,7 +623,7 @@ export default function ResidentPayments() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>Confirm Payment</h3>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>This action will mark the invoice as paid</p>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Mark this invoice as paid</p>
               </div>
               <button 
                 onClick={() => setSelectedPayment(null)}
@@ -620,10 +633,7 @@ export default function ResidentPayments() {
                   borderRadius: 10,
                   background: T.surface,
                   border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  cursor: 'pointer'
                 }}
               >
                 <X size={16} color={T.textMd} />
@@ -670,7 +680,7 @@ export default function ResidentPayments() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: 0, fontWeight: 600, color: T.text }}>Bank Transfer / Cash</p>
-                  <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Mark as paid (offline payment)</p>
+                  <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Offline payment confirmation</p>
                 </div>
               </div>
             </div>
@@ -686,7 +696,7 @@ export default function ResidentPayments() {
               marginBottom: 20
             }}>
               <Lock size={14} color={T.teal} />
-              <p style={{ margin: 0, fontSize: 11, color: T.teal }}>The syndic will be notified immediately</p>
+              <p style={{ margin: 0, fontSize: 11, color: T.teal }}>Syndic will be notified immediately</p>
             </div>
 
             {/* Action Buttons */}
@@ -703,8 +713,7 @@ export default function ResidentPayments() {
                 color: '#fff',
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: processing ? 'not-allowed' : 'pointer',
-                transition: 'transform 0.1s ease'
+                cursor: processing ? 'not-allowed' : 'pointer'
               }}
             >
               {processing ? 'Processing...' : `Confirm Payment - ${selectedPayment.amount.toLocaleString()} DZD`}
