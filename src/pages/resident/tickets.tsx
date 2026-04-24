@@ -46,12 +46,10 @@ export default function ResidentTickets() {
     title: '',
     description: '',
     category: 'general',
-    customCategory: '',
     priority: 'medium'
   });
   const [submitting, setSubmitting] = useState(false);
   const [buildingName, setBuildingName] = useState('');
-  const [useCustomCategory, setUseCustomCategory] = useState(false);
 
   // Get resident from localStorage directly
   useEffect(() => {
@@ -79,15 +77,13 @@ export default function ResidentTickets() {
     if (!apartmentNumber) return;
     
     try {
-      const { data: apartment, error } = await supabase
+      const { data: apartment } = await supabase
         .from('apartments')
         .select('building_id')
         .eq('apartment_number', apartmentNumber)
         .maybeSingle();
       
-      if (error || !apartment) {
-        return;
-      }
+      if (!apartment?.building_id) return;
       
       const { data: building } = await supabase
         .from('buildings')
@@ -133,11 +129,6 @@ export default function ResidentTickets() {
       return;
     }
 
-    if (useCustomCategory && !formData.customCategory) {
-      alert('Please enter a custom category');
-      return;
-    }
-
     if (!resident) return;
 
     setSubmitting(true);
@@ -152,11 +143,6 @@ export default function ResidentTickets() {
 
       const buildingId = residentData?.building_id;
 
-      // Get final category value
-      const finalCategory = useCustomCategory && formData.customCategory 
-        ? formData.customCategory.toLowerCase().replace(/\s+/g, '_')
-        : formData.category;
-
       const { error } = await supabase
         .from('tickets')
         .insert([{
@@ -164,7 +150,7 @@ export default function ResidentTickets() {
           building_id: buildingId || null,
           title: formData.title,
           description: formData.description,
-          category: finalCategory,
+          category: formData.category,
           priority: formData.priority,
           status: 'pending',
           created_at: new Date().toISOString()
@@ -178,12 +164,10 @@ export default function ResidentTickets() {
           title: '', 
           description: '', 
           category: 'general', 
-          customCategory: '',
           priority: 'medium' 
         });
-        setUseCustomCategory(false);
         await fetchTickets(resident.id);
-        alert('✅ Ticket submitted successfully! The syndic has been notified.');
+        alert('✅ Ticket submitted successfully!');
       }
     } catch (err) {
       console.error('Submit error:', err);
@@ -208,45 +192,45 @@ export default function ResidentTickets() {
     return category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
-  const getPriorityIcon = (priority: string) => {
+  const getPriorityColor = (priority: string) => {
     switch(priority) {
-      case 'urgent': return <Flame size={14} color="#EF4444" />;
-      case 'high': return <AlertCircle size={14} color="#F97316" />;
-      case 'medium': return <Clock size={14} color="#EAB308" />;
-      default: return <Shield size={14} color="#3B82F6" />;
+      case 'urgent': return '#EF4444';
+      case 'high': return '#F97316';
+      case 'medium': return '#EAB308';
+      default: return '#3B82F6';
     }
   };
 
-  const getPriorityStyle = (priority: string) => {
+  const getPriorityBg = (priority: string) => {
     switch(priority) {
-      case 'urgent': return { bg: T.redLight, text: T.red };
-      case 'high': return { bg: T.orangeLight, text: T.orangeDeep };
-      case 'medium': return { bg: '#FEF9C3', text: '#854D0E' };
-      default: return { bg: T.tealLight, text: T.teal };
+      case 'urgent': return '#FEE2E2';
+      case 'high': return '#FFEDD5';
+      case 'medium': return '#FEF9C3';
+      default: return '#E0F2FE';
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch(status) {
-      case 'resolved': 
-        return { bg: T.greenLight, text: T.green, icon: CheckCircle, label: 'Resolved' };
-      case 'in_progress': 
-        return { bg: '#DBEAFE', text: '#1E40AF', icon: Zap, label: 'In Progress' };
-      default: 
-        return { bg: '#FEF3C7', text: '#92400E', icon: Clock, label: 'Pending' };
+      case 'resolved': return '#059669';
+      case 'in_progress': return '#2563EB';
+      default: return '#D97706';
     }
   };
 
-  const getStatusMessage = (status: string) => {
+  const getStatusBg = (status: string) => {
     switch(status) {
-      case 'pending':
-        return 'Your ticket has been submitted and is waiting for review.';
-      case 'in_progress':
-        return 'Your ticket is being handled by the syndic.';
-      case 'resolved':
-        return 'Your ticket has been resolved. Thank you for your patience.';
-      default:
-        return '';
+      case 'resolved': return '#D1FAE5';
+      case 'in_progress': return '#DBEAFE';
+      default: return '#FEF3C7';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch(status) {
+      case 'resolved': return 'Resolved';
+      case 'in_progress': return 'In Progress';
+      default: return 'Pending';
     }
   };
 
@@ -435,9 +419,6 @@ export default function ResidentTickets() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {tickets.map((ticket, index) => {
-              const status = getStatusBadge(ticket.status);
-              const StatusIcon = status.icon;
-              const priorityStyle = getPriorityStyle(ticket.priority);
               const isPending = ticket.status === 'pending';
               
               return (
@@ -457,44 +438,41 @@ export default function ResidentTickets() {
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <div style={{
-                        padding: '6px 10px',
+                      <span style={{
+                        padding: '4px 10px',
                         borderRadius: 10,
-                        background: priorityStyle.bg,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
+                        background: getPriorityBg(ticket.priority),
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: getPriorityColor(ticket.priority)
                       }}>
-                        {getPriorityIcon(ticket.priority)}
-                        <span style={{ fontSize: 11, fontWeight: 600, color: priorityStyle.text, textTransform: 'capitalize' }}>
-                          {ticket.priority}
-                        </span>
-                      </div>
-                      <div style={{
-                        padding: '6px 10px',
+                        {ticket.priority}
+                      </span>
+                      <span style={{
+                        padding: '4px 10px',
                         borderRadius: 10,
                         background: T.surface,
+                        fontSize: 11,
+                        fontWeight: 500,
+                        color: T.textSm,
                         display: 'flex',
                         alignItems: 'center',
                         gap: 6
                       }}>
                         {getCategoryIcon(ticket.category)}
-                        <span style={{ fontSize: 11, fontWeight: 500, color: T.textSm }}>
-                          {getCategoryLabel(ticket.category)}
-                        </span>
-                      </div>
+                        {getCategoryLabel(ticket.category)}
+                      </span>
                     </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
+                    <span style={{
                       padding: '4px 10px',
                       borderRadius: 20,
-                      background: status.bg
+                      fontSize: 10,
+                      fontWeight: 600,
+                      background: getStatusBg(ticket.status),
+                      color: getStatusColor(ticket.status)
                     }}>
-                      <StatusIcon size={10} color={status.text} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: status.text }}>{status.label}</span>
-                    </div>
+                      {getStatusLabel(ticket.status)}
+                    </span>
                   </div>
                   
                   <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: T.navy }}>{ticket.title}</h3>
@@ -527,7 +505,7 @@ export default function ResidentTickets() {
         )}
       </div>
 
-      {/* New Ticket Modal - Simplified */}
+      {/* New Ticket Modal */}
       {showForm && (
         <>
           <div 
@@ -681,7 +659,7 @@ export default function ResidentTickets() {
         </>
       )}
 
-      {/* Ticket Details Modal - Simplified */}
+      {/* Ticket Details Modal */}
       {showDetails && (
         <>
           <div 
@@ -730,32 +708,38 @@ export default function ResidentTickets() {
               </button>
             </div>
 
+            {/* Status */}
             <div style={{
-              background: T.surface,
+              background: getStatusBg(showDetails.status),
               borderRadius: 16,
               padding: 16,
               marginBottom: 20
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                {getStatusBadge(showDetails.status).icon({ size: 16, color: getStatusBadge(showDetails.status).text })}
-                <span style={{ fontWeight: 600, color: getStatusBadge(showDetails.status).text }}>
-                  {getStatusBadge(showDetails.status).label}
+                {showDetails.status === 'resolved' && <CheckCircle size={16} color={getStatusColor(showDetails.status)} />}
+                {showDetails.status === 'in_progress' && <Zap size={16} color={getStatusColor(showDetails.status)} />}
+                {showDetails.status === 'pending' && <Clock size={16} color={getStatusColor(showDetails.status)} />}
+                <span style={{ fontWeight: 600, color: getStatusColor(showDetails.status) }}>
+                  {getStatusLabel(showDetails.status)}
                 </span>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: T.textMd }}>
-                {getStatusMessage(showDetails.status)}
+                {showDetails.status === 'pending' && 'Your ticket has been submitted and is waiting for review.'}
+                {showDetails.status === 'in_progress' && 'Your ticket is being handled by the syndic.'}
+                {showDetails.status === 'resolved' && 'Your ticket has been resolved. Thank you for your patience.'}
               </p>
             </div>
 
+            {/* Ticket Details */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <span style={{
                   padding: '4px 10px',
                   borderRadius: 10,
-                  background: getPriorityStyle(showDetails.priority).bg,
+                  background: getPriorityBg(showDetails.priority),
                   fontSize: 11,
                   fontWeight: 600,
-                  color: getPriorityStyle(showDetails.priority).text
+                  color: getPriorityColor(showDetails.priority)
                 }}>
                   {showDetails.priority.toUpperCase()}
                 </span>
@@ -765,8 +749,12 @@ export default function ResidentTickets() {
                   background: T.surface,
                   fontSize: 11,
                   fontWeight: 500,
-                  color: T.textSm
+                  color: T.textSm,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6
                 }}>
+                  {getCategoryIcon(showDetails.category)}
                   {getCategoryLabel(showDetails.category)}
                 </span>
               </div>
@@ -781,6 +769,7 @@ export default function ResidentTickets() {
               </div>
             </div>
 
+            {/* Response from Syndic */}
             {showDetails.response && (
               <div style={{
                 background: T.tealLight,
