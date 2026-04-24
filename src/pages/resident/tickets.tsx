@@ -4,10 +4,13 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   Ticket, Plus, AlertCircle, CheckCircle, Clock,
-  Flame, Shield, Zap, ArrowLeft, X, Send,
-  Sparkles, Home, Calendar, MessageSquare, Eye,
-  Volume2, HelpCircle, Users, PlusCircle
+  Flame, Shield, Zap, ArrowLeft, X, Calendar, MessageSquare, Eye,
+  Volume2, HelpCircle, Users, Sparkles
 } from 'lucide-react';
+
+// ============================================
+// INTERFACES
+// ============================================
 
 interface Ticket {
   id: string;
@@ -21,7 +24,11 @@ interface Ticket {
   response?: string | null;
 }
 
-// Predefined categories
+// ============================================
+// CONSTANTS
+// ============================================
+
+// Predefined categories for tickets
 const predefinedCategories = [
   { value: 'general', label: 'General Complaint', icon: HelpCircle, color: '#6B7280' },
   { value: 'noise', label: 'Noise Complaint', icon: Volume2, color: '#EF4444' },
@@ -33,25 +40,39 @@ const predefinedCategories = [
   { value: 'pests', label: 'Pest Control', icon: AlertCircle, color: '#F59E0B' },
   { value: 'elevator', label: 'Elevator Issue', icon: AlertCircle, color: '#EC4899' },
   { value: 'internet', label: 'Internet/TV', icon: Zap, color: '#06B6D4' },
+  { value: 'other', label: 'Other', icon: HelpCircle, color: '#8B5CF6' },
 ];
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function ResidentTickets() {
   const router = useRouter();
+  
+  // State
   const [resident, setResident] = useState<any>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showDetails, setShowDetails] = useState<Ticket | null>(null);
+  const [buildingName, setBuildingName] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  
+  // Form data
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     category: 'general',
     priority: 'medium'
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [buildingName, setBuildingName] = useState('');
 
-  // Get resident from localStorage directly
+  // ============================================
+  // INITIALIZATION - Load resident data
+  // ============================================
+  
   useEffect(() => {
     const token = localStorage.getItem('resident_token');
     const residentData = localStorage.getItem('resident_data');
@@ -73,6 +94,13 @@ export default function ResidentTickets() {
     }
   }, []);
 
+  // ============================================
+  // DATA FETCHING FUNCTIONS
+  // ============================================
+
+  /**
+   * Fetch building name from apartment number
+   */
   const fetchBuildingName = async (apartmentNumber: string) => {
     if (!apartmentNumber) return;
     
@@ -91,14 +119,15 @@ export default function ResidentTickets() {
         .eq('id', apartment.building_id)
         .maybeSingle();
       
-      if (building) {
-        setBuildingName(building.name);
-      }
+      if (building) setBuildingName(building.name);
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error fetching building:', err);
     }
   };
 
+  /**
+   * Fetch all tickets for the current resident
+   */
   const fetchTickets = async (residentId: string) => {
     setLoading(true);
     
@@ -109,28 +138,37 @@ export default function ResidentTickets() {
         .eq('resident_id', residentId)
         .order('created_at', { ascending: false });
       
-      if (error) {
-        console.error('Error fetching tickets:', error);
-        setTickets([]);
-      } else {
-        setTickets(data || []);
-      }
+      if (error) throw error;
+      setTickets(data || []);
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error('Error fetching tickets:', err);
       setTickets([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // ============================================
+  // TICKET SUBMISSION
+  // ============================================
+
+  /**
+   * Submit a new ticket
+   */
   const submitTicket = async () => {
+    // Validation
     if (!formData.title) {
       alert('Please enter a title');
       return;
     }
-
+    
+    if (formData.category === 'other' && !customCategory.trim()) {
+      alert('Please specify your category');
+      return;
+    }
+    
     if (!resident) return;
-
+    
     setSubmitting(true);
     
     try {
@@ -140,43 +178,51 @@ export default function ResidentTickets() {
         .select('building_id')
         .eq('id', resident.id)
         .maybeSingle();
-
-      const buildingId = residentData?.building_id;
-
+      
+      // Determine final category (use custom if "other" is selected)
+      const finalCategory = formData.category === 'other' 
+        ? customCategory.trim().toLowerCase().replace(/\s+/g, '_')
+        : formData.category;
+      
+      // Insert ticket
       const { error } = await supabase
         .from('tickets')
         .insert([{
           resident_id: resident.id,
-          building_id: buildingId || null,
+          building_id: residentData?.building_id || null,
           title: formData.title,
           description: formData.description,
-          category: formData.category,
+          category: finalCategory,
           priority: formData.priority,
           status: 'pending',
           created_at: new Date().toISOString()
         }]);
-
-      if (error) {
-        alert('Error submitting ticket: ' + error.message);
-      } else {
-        setShowForm(false);
-        setFormData({ 
-          title: '', 
-          description: '', 
-          category: 'general', 
-          priority: 'medium' 
-        });
-        await fetchTickets(resident.id);
-        alert('✅ Ticket submitted successfully!');
-      }
+      
+      if (error) throw error;
+      
+      // Reset form and refresh
+      setShowForm(false);
+      setFormData({ title: '', description: '', category: 'general', priority: 'medium' });
+      setCustomCategory('');
+      setShowCustomInput(false);
+      await fetchTickets(resident.id);
+      alert('✅ Ticket submitted successfully!');
+      
     } catch (err) {
       console.error('Submit error:', err);
-      alert('An unexpected error occurred. Please try again.');
+      alert('Error submitting ticket. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // ============================================
+  // UI HELPER FUNCTIONS
+  // ============================================
+
+  /**
+   * Get category icon component
+   */
   const getCategoryIcon = (category: string) => {
     const found = predefinedCategories.find(c => c.value === category);
     if (found) {
@@ -186,12 +232,19 @@ export default function ResidentTickets() {
     return <HelpCircle size={14} color="#6B7280" />;
   };
 
+  /**
+   * Get display label for category (handles custom categories)
+   */
   const getCategoryLabel = (category: string) => {
     const found = predefinedCategories.find(c => c.value === category);
     if (found) return found.label;
+    // Format custom category: underscores to spaces, capitalize words
     return category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
+  /**
+   * Get priority color based on value
+   */
   const getPriorityColor = (priority: string) => {
     switch(priority) {
       case 'urgent': return '#EF4444';
@@ -201,6 +254,9 @@ export default function ResidentTickets() {
     }
   };
 
+  /**
+   * Get priority background color
+   */
   const getPriorityBg = (priority: string) => {
     switch(priority) {
       case 'urgent': return '#FEE2E2';
@@ -210,6 +266,9 @@ export default function ResidentTickets() {
     }
   };
 
+  /**
+   * Get status color
+   */
   const getStatusColor = (status: string) => {
     switch(status) {
       case 'resolved': return '#059669';
@@ -218,6 +277,9 @@ export default function ResidentTickets() {
     }
   };
 
+  /**
+   * Get status background color
+   */
   const getStatusBg = (status: string) => {
     switch(status) {
       case 'resolved': return '#D1FAE5';
@@ -226,6 +288,9 @@ export default function ResidentTickets() {
     }
   };
 
+  /**
+   * Get status label text
+   */
   const getStatusLabel = (status: string) => {
     switch(status) {
       case 'resolved': return 'Resolved';
@@ -234,6 +299,19 @@ export default function ResidentTickets() {
     }
   };
 
+  /**
+   * Get status message for details view
+   */
+  const getStatusMessage = (status: string) => {
+    switch(status) {
+      case 'pending': return 'Your ticket has been submitted and is waiting for review.';
+      case 'in_progress': return 'Your ticket is being handled by the syndic.';
+      case 'resolved': return 'Your ticket has been resolved. Thank you for your patience.';
+      default: return '';
+    }
+  };
+
+  // Calculate statistics
   const stats = {
     total: tickets.length,
     pending: tickets.filter(t => t.status === 'pending').length,
@@ -241,6 +319,10 @@ export default function ResidentTickets() {
     resolved: tickets.filter(t => t.status === 'resolved').length
   };
 
+  // ============================================
+  // LOADING STATE
+  // ============================================
+  
   if (loading) {
     return (
       <div style={{ 
@@ -261,6 +343,10 @@ export default function ResidentTickets() {
 
   if (!resident) return null;
 
+  // ============================================
+  // RENDER
+  // ============================================
+  
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -277,25 +363,15 @@ export default function ResidentTickets() {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .fade-in-up {
-          animation: fadeInUp 0.5s ease both;
-        }
-        .slide-up {
-          animation: slideUp 0.3s ease-out;
-        }
-        .card-hover {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .card-hover:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(5,15,36,0.1);
-        }
+        .fade-in-up { animation: fadeInUp 0.5s ease both; }
+        .slide-up { animation: slideUp 0.3s ease-out; }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(5,15,36,0.1); }
       `}</style>
 
-      {/* Header */}
+      {/* ============================================
+          HEADER SECTION
+      ============================================ */}
       <div style={{
         background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
         padding: '24px 20px 40px',
@@ -304,12 +380,10 @@ export default function ResidentTickets() {
         position: 'relative',
         overflow: 'hidden'
       }}>
-        <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-        <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-        
         <div style={{ position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* Back button */}
               <button 
                 onClick={() => router.back()} 
                 style={{
@@ -326,6 +400,8 @@ export default function ResidentTickets() {
               >
                 <ArrowLeft size={20} color="#fff" />
               </button>
+              
+              {/* Title */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Sparkles size={14} color={T.orange} />
@@ -335,6 +411,8 @@ export default function ResidentTickets() {
                 <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>{buildingName || 'Your Building'}</p>
               </div>
             </div>
+            
+            {/* New ticket button */}
             <button
               onClick={() => setShowForm(true)}
               style={{
@@ -356,7 +434,9 @@ export default function ResidentTickets() {
         </div>
       </div>
 
-      {/* Stats Summary */}
+      {/* ============================================
+          STATS CARDS
+      ============================================ */}
       <div style={{ padding: '0 20px', marginTop: -30 }}>
         <div className="fade-in-up" style={{
           background: T.white,
@@ -385,9 +465,12 @@ export default function ResidentTickets() {
         </div>
       </div>
 
-      {/* Tickets List */}
+      {/* ============================================
+          TICKETS LIST
+      ============================================ */}
       <div style={{ padding: '20px' }}>
         {tickets.length === 0 ? (
+          // Empty state
           <div className="fade-in-up" style={{
             background: T.white,
             borderRadius: 24,
@@ -417,97 +500,106 @@ export default function ResidentTickets() {
             </button>
           </div>
         ) : (
+          // Tickets grid
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {tickets.map((ticket, index) => {
-              const isPending = ticket.status === 'pending';
-              
-              return (
-                <div 
-                  key={ticket.id} 
-                  className="card-hover fade-in-up"
-                  style={{
-                    background: T.white,
-                    borderRadius: 20,
-                    padding: '16px',
-                    border: `1px solid ${T.border}`,
-                    borderLeft: isPending ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
-                    transitionDelay: `${index * 0.05}s`,
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowDetails(ticket)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: 10,
-                        background: getPriorityBg(ticket.priority),
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: getPriorityColor(ticket.priority)
-                      }}>
-                        {ticket.priority}
-                      </span>
-                      <span style={{
-                        padding: '4px 10px',
-                        borderRadius: 10,
-                        background: T.surface,
-                        fontSize: 11,
-                        fontWeight: 500,
-                        color: T.textSm,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6
-                      }}>
-                        {getCategoryIcon(ticket.category)}
-                        {getCategoryLabel(ticket.category)}
-                      </span>
-                    </div>
+            {tickets.map((ticket) => (
+              <div 
+                key={ticket.id} 
+                className="card-hover fade-in-up"
+                style={{
+                  background: T.white,
+                  borderRadius: 20,
+                  padding: '16px',
+                  border: `1px solid ${T.border}`,
+                  borderLeft: ticket.status === 'pending' ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
+                  cursor: 'pointer'
+                }}
+                onClick={() => setShowDetails(ticket)}
+              >
+                {/* Header row: Priority + Category + Status */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    {/* Priority badge */}
                     <span style={{
                       padding: '4px 10px',
-                      borderRadius: 20,
-                      fontSize: 10,
+                      borderRadius: 10,
+                      background: getPriorityBg(ticket.priority),
+                      fontSize: 11,
                       fontWeight: 600,
-                      background: getStatusBg(ticket.status),
-                      color: getStatusColor(ticket.status)
+                      color: getPriorityColor(ticket.priority)
                     }}>
-                      {getStatusLabel(ticket.status)}
+                      {ticket.priority}
+                    </span>
+                    
+                    {/* Category badge */}
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: 10,
+                      background: T.surface,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: T.textSm,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6
+                    }}>
+                      {getCategoryIcon(ticket.category)}
+                      {getCategoryLabel(ticket.category)}
                     </span>
                   </div>
                   
-                  <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: T.navy }}>{ticket.title}</h3>
-                  <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>
-                    {ticket.description.length > 100 ? ticket.description.substring(0, 100) + '...' : ticket.description}
-                  </p>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center',
-                    paddingTop: 12,
-                    borderTop: `1px solid ${T.border}`
+                  {/* Status badge */}
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    background: getStatusBg(ticket.status),
+                    color: getStatusColor(ticket.status)
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Calendar size={12} color={T.textSm} />
-                      <span style={{ fontSize: 11, color: T.textSm }}>
-                        {new Date(ticket.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <Eye size={12} color={T.teal} />
-                      <span style={{ fontSize: 11, color: T.teal }}>View details</span>
-                    </div>
+                    {getStatusLabel(ticket.status)}
+                  </span>
+                </div>
+                
+                {/* Title */}
+                <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 700, color: T.navy }}>{ticket.title}</h3>
+                
+                {/* Description preview */}
+                <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>
+                  {ticket.description.length > 100 ? ticket.description.substring(0, 100) + '...' : ticket.description}
+                </p>
+                
+                {/* Footer: Date + View link */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  paddingTop: 12,
+                  borderTop: `1px solid ${T.border}`
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Calendar size={12} color={T.textSm} />
+                    <span style={{ fontSize: 11, color: T.textSm }}>
+                      {new Date(ticket.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Eye size={12} color={T.teal} />
+                    <span style={{ fontSize: 11, color: T.teal }}>View details</span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
 
-      {/* New Ticket Modal */}
+      {/* ============================================
+          NEW TICKET MODAL
+      ============================================ */}
       {showForm && (
         <>
+          {/* Backdrop */}
           <div 
             style={{
               position: 'fixed',
@@ -516,8 +608,14 @@ export default function ResidentTickets() {
               zIndex: 90,
               backdropFilter: 'blur(4px)'
             }}
-            onClick={() => setShowForm(false)}
+            onClick={() => {
+              setShowForm(false);
+              setCustomCategory('');
+              setShowCustomInput(false);
+            }}
           />
+          
+          {/* Modal */}
           <div className="slide-up" style={{
             position: 'fixed',
             bottom: 0,
@@ -528,32 +626,38 @@ export default function ResidentTickets() {
             borderTopRightRadius: 28,
             zIndex: 100,
             padding: 24,
+            maxHeight: '85vh',
+            overflowY: 'auto',
             boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
           }}>
+            {/* Modal header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>Raise a Ticket</h3>
                 <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Describe your issue or complaint</p>
               </div>
               <button 
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  setShowForm(false);
+                  setCustomCategory('');
+                  setShowCustomInput(false);
+                }}
                 style={{
                   width: 32,
                   height: 32,
                   borderRadius: 10,
                   background: T.surface,
                   border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  cursor: 'pointer'
                 }}
               >
                 <X size={16} color={T.textMd} />
               </button>
             </div>
             
+            {/* Form fields */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Title input */}
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Title *</label>
                 <input
@@ -572,11 +676,17 @@ export default function ResidentTickets() {
                 />
               </div>
               
+              {/* Category select with custom option */}
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Category</label>
                 <select
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, category: value });
+                    setShowCustomInput(value === 'other');
+                    if (value !== 'other') setCustomCategory('');
+                  }}
                   style={{
                     width: '100%',
                     padding: '12px 14px',
@@ -584,15 +694,37 @@ export default function ResidentTickets() {
                     borderRadius: 12,
                     fontSize: 14,
                     background: T.white,
-                    outline: 'none'
+                    outline: 'none',
+                    marginBottom: showCustomInput ? 12 : 0
                   }}
                 >
                   {predefinedCategories.map(cat => (
                     <option key={cat.value} value={cat.value}>{cat.label}</option>
                   ))}
                 </select>
+                
+                {/* Custom category input (shown when "Other" is selected) */}
+                {showCustomInput && (
+                  <input
+                    type="text"
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="Please specify your issue category..."
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      border: `1px solid ${T.border}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      outline: 'none',
+                      marginTop: 8
+                    }}
+                    autoFocus
+                  />
+                )}
               </div>
               
+              {/* Priority select */}
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Priority</label>
                 <select
@@ -615,6 +747,7 @@ export default function ResidentTickets() {
                 </select>
               </div>
               
+              {/* Description textarea */}
               <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Description</label>
                 <textarea
@@ -636,20 +769,21 @@ export default function ResidentTickets() {
               </div>
             </div>
             
+            {/* Submit button */}
             <button
               onClick={submitTicket}
-              disabled={submitting || !formData.title}
+              disabled={submitting || !formData.title || (formData.category === 'other' && !customCategory.trim())}
               style={{
                 width: '100%',
                 marginTop: 24,
                 padding: '14px',
-                background: (!formData.title) ? T.textSm : T.orange,
+                background: (!formData.title || (formData.category === 'other' && !customCategory.trim())) ? T.textSm : T.orange,
                 border: 'none',
                 borderRadius: 14,
                 color: '#fff',
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: (!formData.title || submitting) ? 'not-allowed' : 'pointer',
+                cursor: (!formData.title || (formData.category === 'other' && !customCategory.trim()) || submitting) ? 'not-allowed' : 'pointer',
                 opacity: submitting ? 0.7 : 1
               }}
             >
@@ -659,9 +793,12 @@ export default function ResidentTickets() {
         </>
       )}
 
-      {/* Ticket Details Modal */}
+      {/* ============================================
+          TICKET DETAILS MODAL
+      ============================================ */}
       {showDetails && (
         <>
+          {/* Backdrop */}
           <div 
             style={{
               position: 'fixed',
@@ -672,6 +809,8 @@ export default function ResidentTickets() {
             }}
             onClick={() => setShowDetails(null)}
           />
+          
+          {/* Modal */}
           <div className="slide-up" style={{
             position: 'fixed',
             bottom: 0,
@@ -686,6 +825,7 @@ export default function ResidentTickets() {
             overflowY: 'auto',
             boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
           }}>
+            {/* Modal header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>{showDetails.title}</h3>
@@ -708,7 +848,7 @@ export default function ResidentTickets() {
               </button>
             </div>
 
-            {/* Status */}
+            {/* Status message box */}
             <div style={{
               background: getStatusBg(showDetails.status),
               borderRadius: 16,
@@ -724,13 +864,11 @@ export default function ResidentTickets() {
                 </span>
               </div>
               <p style={{ margin: 0, fontSize: 13, color: T.textMd }}>
-                {showDetails.status === 'pending' && 'Your ticket has been submitted and is waiting for review.'}
-                {showDetails.status === 'in_progress' && 'Your ticket is being handled by the syndic.'}
-                {showDetails.status === 'resolved' && 'Your ticket has been resolved. Thank you for your patience.'}
+                {getStatusMessage(showDetails.status)}
               </p>
             </div>
 
-            {/* Ticket Details */}
+            {/* Priority and category badges */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <span style={{
@@ -758,9 +896,13 @@ export default function ResidentTickets() {
                   {getCategoryLabel(showDetails.category)}
                 </span>
               </div>
+              
+              {/* Description */}
               <p style={{ margin: 0, fontSize: 14, color: T.text, lineHeight: 1.5 }}>
                 {showDetails.description}
               </p>
+              
+              {/* Submission date */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
                 <Calendar size={12} color={T.textSm} />
                 <span style={{ fontSize: 11, color: T.textSm }}>
@@ -769,7 +911,7 @@ export default function ResidentTickets() {
               </div>
             </div>
 
-            {/* Response from Syndic */}
+            {/* Syndic response (if any) */}
             {showDetails.response && (
               <div style={{
                 background: T.tealLight,
@@ -785,6 +927,7 @@ export default function ResidentTickets() {
               </div>
             )}
 
+            {/* Close button */}
             <button
               onClick={() => setShowDetails(null)}
               style={{
