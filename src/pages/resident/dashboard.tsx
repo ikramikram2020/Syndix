@@ -286,8 +286,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          STATS CARDS - OPTION 1 (BEST CHOICE)
-          Clean Financial Overview with DZD currency
+          STATS CARDS 
       ============================================ */}
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
@@ -295,7 +294,7 @@ export default function ResidentDashboard() {
           
           {/* Due Amount Card - Primary Card */}
           <div className="fade-in-up card-hover" style={{ 
-            background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
+            background: `linear-gradient(135deg, ${T.textMd}, ${T.navyDeep})`,
             borderRadius: 20, 
             padding: '16px 12px',
             cursor: 'pointer',
