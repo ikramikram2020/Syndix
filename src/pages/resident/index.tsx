@@ -4,51 +4,81 @@ import { T } from '../../styles/theme';
 import { CheckCircle, User, Home, Building2, ArrowRight, Sparkles } from 'lucide-react';
 import Head from 'next/head';
 
+// ============================================
+// TYPESCRIPT DECLARATION for PWA install prompt
+// ============================================
+
 declare global {
   interface Window {
     deferredPrompt: any;
   }
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function ResidentLogin() {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [residentName, setResidentName] = useState('');
-  const [apartmentNumber, setApartmentNumber] = useState('');
-  const [buildingName, setBuildingName] = useState('');
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  
+  // ============================================
+  // STATE MANAGEMENT
+  // ============================================
+  
+  const [loading, setLoading] = useState(true);      // Controls loading spinner
+  const [error, setError] = useState('');             // Stores error message if any
+  const [residentName, setResidentName] = useState('');     // Resident's full name
+  const [apartmentNumber, setApartmentNumber] = useState(''); // Apartment number
+  const [buildingName, setBuildingName] = useState('');       // Building name
+  const [showWelcome, setShowWelcome] = useState(false);      // Controls welcome screen visibility
+  const [token, setToken] = useState<string | null>(null);    // Stores the access token
 
+  // ============================================
+  // INITIALIZATION - Check for existing session or new token
+  // ============================================
+  
   useEffect(() => {
-    // Check if app is installed as PWA and has token
+    // Check if app is running as installed PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    
+    // Get saved data from localStorage (if user already logged in)
     const savedToken = localStorage.getItem('resident_token');
     const savedResident = localStorage.getItem('resident_data');
     
-    // If PWA is installed AND we have saved resident data, go directly to dashboard
+    // If user already installed the PWA and has valid session → go straight to dashboard
     if (isStandalone && savedToken && savedResident) {
       router.replace('/resident/dashboard');
       return;
     }
     
-    // Otherwise process the token from URL
+    // Process token from URL (when user clicks email link or scans QR)
     if (router.isReady) {
       const { token: tokenFromUrl } = router.query;
       
       if (tokenFromUrl && typeof tokenFromUrl === 'string') {
+        // New user with token in URL
         setToken(tokenFromUrl);
         verifyToken(tokenFromUrl);
       } else if (!savedToken) {
+        // No token found → show error
         setError('No access token found. Please scan the QR code.');
         setLoading(false);
       } else {
-        // Use saved token
+        // Returning user with saved token
         verifyToken(savedToken);
       }
     }
   }, [router.isReady, router.query]);
 
+  // ============================================
+  // API CALLS - Token verification
+  // ============================================
+  
+  /**
+   * Verifies the token with the backend API
+   * On success: saves resident data to localStorage and shows welcome screen
+   * On failure: shows error message
+   */
   const verifyToken = async (accessToken: string) => {
     try {
       const response = await fetch('/api/resident/verify-qr', {
@@ -59,18 +89,21 @@ export default function ResidentLogin() {
 
       const data = await response.json();
 
+      // Handle invalid token
       if (!response.ok || !data.success) {
         setError(data.error || 'Invalid QR code. Please contact your syndic.');
         setLoading(false);
         return;
       }
 
+      // Save resident data to localStorage for persistent login
       localStorage.setItem('resident_token', data.token);
       localStorage.setItem('resident_data', JSON.stringify(data.resident));
       localStorage.setItem('resident_name', data.resident.full_name);
       localStorage.setItem('resident_apartment', data.resident.apartment_number || '?');
       localStorage.setItem('resident_building', data.resident.building_name || 'Your Building');
 
+      // Update UI state
       setResidentName(data.resident.full_name);
       setApartmentNumber(data.resident.apartment_number || '?');
       setBuildingName(data.resident.building_name || 'Your Building');
@@ -84,11 +117,21 @@ export default function ResidentLogin() {
     }
   };
 
+  // ============================================
+  // HANDLERS
+  // ============================================
+  
+  /**
+   * Navigates user to the main dashboard
+   */
   const handleContinue = () => {
     router.push('/resident/dashboard');
   };
 
-  // Loading Screen
+  // ============================================
+  // LOADING SCREEN (White, clean, minimal)
+  // ============================================
+  
   if (loading) {
     return (
       <>
@@ -97,23 +140,25 @@ export default function ResidentLogin() {
         </Head>
         <div style={{ 
           minHeight: '100vh', 
-          background: `linear-gradient(135deg, ${T.navyDeep} 0%, ${T.navy} 50%, #1A4D7C 100%)`,
+          background: '#FFFFFF',  // Clean white background
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
           <div style={{ textAlign: 'center' }}>
+            {/* Spinner */}
             <div style={{
-              width: 60,
-              height: 60,
+              width: 48,
+              height: 48,
               borderRadius: '50%',
               border: `3px solid ${T.orange}`,
               borderTopColor: 'transparent',
               animation: 'spin 0.75s linear infinite',
               margin: '0 auto 16px'
             }} />
-            <p style={{ color: '#fff', fontSize: 14 }}>Verifying your access...</p>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 8 }}>Welcome to your apartment portal</p>
+            {/* Loading text */}
+            <p style={{ color: T.textMd, fontSize: 14, marginTop: 8 }}>Verifying your access...</p>
+            <p style={{ color: T.textSm, fontSize: 12, marginTop: 4 }}>Please wait a moment</p>
           </div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
@@ -121,7 +166,10 @@ export default function ResidentLogin() {
     );
   }
 
-  // Error Screen
+  // ============================================
+  // ERROR SCREEN
+  // ============================================
+  
   if (error) {
     return (
       <>
@@ -130,13 +178,22 @@ export default function ResidentLogin() {
         </Head>
         <div style={{ 
           minHeight: '100vh', 
-          background: `linear-gradient(135deg, ${T.navyDeep} 0%, ${T.navy} 50%, #1A4D7C 100%)`,
+          background: T.canvasBg,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           padding: 20
         }}>
-          <div style={{ background: T.white, borderRadius: 28, padding: 32, maxWidth: 400, width: '100%', textAlign: 'center' }}>
+          <div style={{ 
+            background: T.white, 
+            borderRadius: 28, 
+            padding: 32, 
+            maxWidth: 400, 
+            width: '100%', 
+            textAlign: 'center',
+            border: `1px solid ${T.border}`
+          }}>
+            {/* Error Icon */}
             <div style={{
               width: 70,
               height: 70,
@@ -157,7 +214,18 @@ export default function ResidentLogin() {
             <p style={{ margin: '12px 0 0', fontSize: 14, color: T.textMd }}>{error}</p>
             <button 
               onClick={() => window.location.href = '/'} 
-              style={{ marginTop: 24, padding: '14px 24px', background: T.navy, color: '#fff', border: 'none', borderRadius: 16, width: '100%', fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+              style={{ 
+                marginTop: 24, 
+                padding: '14px 24px', 
+                background: T.navy, 
+                color: '#fff', 
+                border: 'none', 
+                borderRadius: 16, 
+                width: '100%', 
+                fontSize: 15, 
+                fontWeight: 600, 
+                cursor: 'pointer' 
+              }}
             >
               Go Home
             </button>
@@ -167,13 +235,17 @@ export default function ResidentLogin() {
     );
   }
 
-  // Welcome Screen
+  // ============================================
+  // WELCOME SCREEN - Shown after successful verification
+  // ============================================
+  
   return (
     <>
       <Head>
         <title>Welcome | SYNDIX Resident Portal</title>
         <meta name="description" content="Access your apartment portal" />
       </Head>
+      
       <div style={{ 
         minHeight: '100vh', 
         background: T.canvasBg,
@@ -189,8 +261,12 @@ export default function ResidentLogin() {
             to { opacity: 1; transform: translateY(0); }
           }
           @keyframes scaleIn {
-            from { opacity: 0; transform: scale(0.8); }
+            from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
           }
           .slide-up {
             animation: slideUp 0.5s ease both;
@@ -198,10 +274,17 @@ export default function ResidentLogin() {
           .scale-in {
             animation: scaleIn 0.4s ease both;
           }
+          .fade-in {
+            animation: fadeIn 0.3s ease both;
+          }
         `}</style>
 
         <div style={{ maxWidth: 450, width: '100%', margin: '0 auto' }}>
-          {/* Add Install Prompt for first-time users */}
+          
+          {/* ============================================
+              PWA INSTALL PROMPT - Only shown in browser (not installed yet)
+          ============================================ */}
+          
           <div className="scale-in" style={{ marginBottom: 16, textAlign: 'center' }}>
             <button
               onClick={async () => {
@@ -214,37 +297,47 @@ export default function ResidentLogin() {
                 }
               }}
               style={{
-                background: 'rgba(255,255,255,0.9)',
-                border: '1px solid #e2e8f0',
+                background: 'rgba(255,255,255,0.95)',
+                border: `1px solid ${T.border}`,
                 borderRadius: 100,
-                padding: '8px 20px',
+                padding: '10px 24px',
                 fontSize: 13,
                 fontWeight: 500,
                 color: T.navy,
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                transition: 'all 0.2s ease'
               }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
               📱 Install App for Quick Access
             </button>
           </div>
 
-          {/* Card Container */}
+          {/* ============================================
+              MAIN CARD CONTAINER
+          ============================================ */}
+          
           <div className="scale-in" style={{
             background: T.white,
             borderRadius: 32,
             overflow: 'hidden',
-            boxShadow: '0 20px 40px rgba(27,43,107,0.12)',
+            boxShadow: '0 20px 40px rgba(27,43,107,0.08)',
             border: `1px solid ${T.border}`
           }}>
             
-            {/* Header with Logo */}
+            {/* ============================================
+                HEADER SECTION - Branding with gradient
+            ============================================ */}
+            
             <div style={{
               background: `linear-gradient(135deg, ${T.navy} 0%, ${T.teal} 100%)`,
               padding: '40px 24px 32px',
               textAlign: 'center',
               position: 'relative'
             }}>
+              {/* Decorative circles for visual interest */}
               <div style={{
                 position: 'absolute',
                 top: -50,
@@ -252,7 +345,7 @@ export default function ResidentLogin() {
                 width: 150,
                 height: 150,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.04)',
                 pointerEvents: 'none'
               }} />
               <div style={{
@@ -262,11 +355,11 @@ export default function ResidentLogin() {
                 width: 100,
                 height: 100,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.05)',
+                background: 'rgba(255,255,255,0.04)',
                 pointerEvents: 'none'
               }} />
               
-              {/* Logo */}
+              {/* SYNDIX Logo */}
               <div style={{
                 width: 70,
                 height: 70,
@@ -276,7 +369,7 @@ export default function ResidentLogin() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 margin: '0 auto 16px',
-                boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
+                boxShadow: '0 8px 20px rgba(0,0,0,0.1)'
               }}>
                 <img
                   src="/logo3.png"
@@ -287,6 +380,7 @@ export default function ResidentLogin() {
                     objectFit: 'contain'
                   }}
                   onError={(e) => {
+                    // Fallback if image fails to load
                     const target = e.currentTarget;
                     target.style.display = 'none';
                     const parent = target.parentElement;
@@ -314,13 +408,16 @@ export default function ResidentLogin() {
               <p style={{
                 margin: '8px 0 0',
                 fontSize: 13,
-                color: 'rgba(255,255,255,0.7)'
+                color: 'rgba(255,255,255,0.75)'
               }}>
                 Your apartment portal is ready
               </p>
             </div>
 
-            {/* Success Icon */}
+            {/* ============================================
+                SUCCESS CHECKMARK - Confirmation animation
+            ============================================ */}
+            
             <div className="scale-in" style={{
               marginTop: -30,
               textAlign: 'center'
@@ -333,14 +430,19 @@ export default function ResidentLogin() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(0,196,140,0.3)'
+                boxShadow: '0 6px 16px rgba(0,196,140,0.25)'
               }}>
                 <CheckCircle size={32} color="#fff" />
               </div>
             </div>
 
-            {/* Resident Info */}
+            {/* ============================================
+                RESIDENT INFORMATION CARD
+            ============================================ */}
+            
             <div className="slide-up" style={{ padding: '24px 24px 32px' }}>
+              
+              {/* Resident Info Container */}
               <div style={{
                 background: T.surface,
                 borderRadius: 20,
@@ -348,20 +450,23 @@ export default function ResidentLogin() {
                 marginBottom: 24,
                 border: `1px solid ${T.border}`
               }}>
+                {/* Resident Name - Centered */}
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <User size={24} color={T.teal} style={{ margin: '0 auto 8px' }} />
-                  <p style={{ margin: 0, fontSize: 13, color: T.textSm }}>Welcome</p>
-                  <h2 style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 800, color: T.navy }}>
+                  <p style={{ margin: 0, fontSize: 12, color: T.textSm, letterSpacing: 0.5 }}>WELCOME</p>
+                  <h2 style={{ margin: '6px 0 0', fontSize: 22, fontWeight: 800, color: T.navy }}>
                     {residentName}
                   </h2>
                 </div>
 
+                {/* Divider */}
                 <div style={{
                   height: 1,
                   background: T.border,
                   margin: '16px 0'
                 }} />
 
+                {/* Apartment Number - Left/Right layout */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Home size={18} color={T.orange} />
@@ -370,6 +475,7 @@ export default function ResidentLogin() {
                   <span style={{ fontSize: 16, fontWeight: 700, color: T.navy }}>{apartmentNumber}</span>
                 </div>
 
+                {/* Building Name - Left/Right layout */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Building2 size={18} color={T.teal} />
@@ -379,6 +485,10 @@ export default function ResidentLogin() {
                 </div>
               </div>
 
+              {/* ============================================
+                  CONTINUE BUTTON - Entry to dashboard
+              ============================================ */}
+              
               <button
                 onClick={handleContinue}
                 style={{
@@ -396,7 +506,7 @@ export default function ResidentLogin() {
                   fontSize: 16,
                   fontWeight: 600,
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(27,43,107,0.25)'
+                  boxShadow: '0 4px 12px rgba(27,43,107,0.2)'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
@@ -404,13 +514,14 @@ export default function ResidentLogin() {
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(27,43,107,0.25)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(27,43,107,0.2)';
                 }}
               >
                 Continue to Dashboard
                 <ArrowRight size={18} />
               </button>
 
+              {/* Footer */}
               <p style={{
                 textAlign: 'center',
                 marginTop: 20,
