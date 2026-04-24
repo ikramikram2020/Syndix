@@ -142,7 +142,7 @@ export default function ResidentDashboard() {
   };
 
   // ============================================
-  // NAVIGATION TABS (with scale effect)
+  // NAVIGATION TABS
   // ============================================
   
   const tabs = [
@@ -154,19 +154,27 @@ export default function ResidentDashboard() {
   ];
 
   // ============================================
-  // QUICK ACTIONS (Pay Fees highlighted)
+  // QUICK ACTIONS
   // ============================================
   
   const quickActions = [
     { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.navy, primary: true },
     { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange, primary: false },
     { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: T.teal, primary: false },
-    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.green, primary: false },
+    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.teal, primary: false }, // Changed to Teal
   ];
 
-  // Determine due amount styling (dynamic)
+  // Determine due amount styling
   const dueAmountColor = stats.dueAmount > 0 ? T.orange : T.green;
   const dueAmountMessage = stats.dueAmount > 0 ? `${stats.dueAmount.toLocaleString()} DZD` : 'All clear ✅';
+  
+  // Get status message (personality-driven micro-copy)
+  const getStatusMessage = () => {
+    if (stats.pendingCount > 0) {
+      return `⚠️ You have ${stats.pendingCount} pending payment${stats.pendingCount > 1 ? 's' : ''}`;
+    }
+    return 'You\'re all caught up 🎉';
+  };
 
   // ============================================
   // LOADING STATE
@@ -188,23 +196,29 @@ export default function ResidentDashboard() {
   // RENDER
   // ============================================
   
+  // Safe area bottom padding for mobile devices
+  const safeBottomPadding = 'calc(80px + env(safe-area-inset-bottom))';
+  
   return (
     <div style={{ 
       minHeight: '100vh', 
       background: T.canvasBg,
       fontFamily: "'Outfit', 'Segoe UI', sans-serif",
-      paddingBottom: 80
+      paddingBottom: safeBottomPadding
     }}>
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .fade-in-up {
           animation: fadeInUp 0.4s ease both;
         }
         .card-hover {
-          transition: all 0.2s ease;
+          transition: transform 0.1s ease;
         }
         .card-hover:active {
           transform: scale(0.98);
@@ -212,7 +226,7 @@ export default function ResidentDashboard() {
       `}</style>
 
       {/* ============================================
-          HEADER - Purposeful, not just pretty
+          HEADER - Purposeful with personality
       ============================================ */}
       
       <div style={{
@@ -233,15 +247,13 @@ export default function ResidentDashboard() {
                 <Sparkles size={14} color={T.orange} />
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>RESIDENT PORTAL</span>
               </div>
-              {/* Dynamic greeting with purpose */}
+              {/* Dynamic greeting */}
               <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#fff' }}>
                 {getGreeting()}, {residentName.split(' ')[0]}
               </h1>
-              {/* Action-oriented subtitle */}
+              {/* Personality-driven micro-copy */}
               <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
-                {stats.pendingCount > 0 
-                  ? `⚠️ You have ${stats.pendingCount} pending payment${stats.pendingCount > 1 ? 's' : ''}`
-                  : '✓ Your account is up to date'}
+                {getStatusMessage()}
               </p>
             </div>
             
@@ -263,7 +275,7 @@ export default function ResidentDashboard() {
             </button>
           </div>
 
-          {/* Building Info Card */}
+          {/* Building Info Card - Glass effect */}
           <div style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(10px)',
@@ -287,7 +299,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          STATS CARDS - Dynamic due amount color
+          STATS CARDS - Dynamic colors (DZD currency)
       ============================================ */}
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
@@ -339,7 +351,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          QUICK ACTIONS - Pay Fees is primary
+          QUICK ACTIONS - Pay Fees primary
       ============================================ */}
       
       <div style={{ padding: '24px 20px 0' }}>
@@ -364,7 +376,8 @@ export default function ResidentDashboard() {
                     padding: action.primary ? '14px 8px' : '12px 8px',
                     textAlign: 'center',
                     cursor: 'pointer',
-                    boxShadow: action.primary ? '0 4px 12px rgba(28,43,107,0.3)' : 'none'
+                    boxShadow: action.primary ? '0 4px 12px rgba(28,43,107,0.3)' : 'none',
+                    transition: 'transform 0.1s ease'
                   }}
                 >
                   <Icon size={action.primary ? 22 : 20} color="#fff" style={{ margin: '0 auto 6px' }} />
@@ -379,7 +392,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          TICKETS CARD - Better vertical layout
+          TICKETS CARD - Vertical layout
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -438,8 +451,9 @@ export default function ResidentDashboard() {
                   fontSize: 12,
                   fontWeight: 500,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'transform 0.1s ease'
                 }}
+                className="card-hover"
               >
                 + New Ticket
               </button>
@@ -449,7 +463,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          RECENT ACTIVITY - Clean, borderless, lighter
+          RECENT ACTIVITY - Dynamic, borderless, lighter
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -459,7 +473,7 @@ export default function ResidentDashboard() {
             <span style={{ fontSize: 11, color: T.textSm }}>Last updates</span>
           </div>
           
-          {stats.pendingCount === 0 && ticketStats.pending === 0 ? (
+          {(stats.pendingCount === 0 && ticketStats.pending === 0 && stats.paidCount === 0) ? (
             // Empty State
             <div style={{
               background: T.white,
@@ -486,7 +500,7 @@ export default function ResidentDashboard() {
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    transition: 'background 0.2s'
+                    transition: 'background 0.2s ease'
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = T.surface}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -515,7 +529,7 @@ export default function ResidentDashboard() {
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    transition: 'background 0.2s'
+                    transition: 'background 0.2s ease'
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = T.surface}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -531,13 +545,41 @@ export default function ResidentDashboard() {
                   <ChevronRight size={14} color={T.textSm} />
                 </div>
               )}
+              
+              {stats.paidCount > 0 && stats.pendingCount === 0 && (
+                <div 
+                  className="card-hover"
+                  style={{
+                    background: 'transparent',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => router.push('/resident/payments')}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.greenLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <CheckCircle size={16} color={T.green} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>All caught up</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>All payments are up to date</p>
+                  </div>
+                  <ChevronRight size={14} color={T.textSm} />
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {/* ============================================
-          BOTTOM TAB NAVIGATION - With scale animation
+          BOTTOM TAB NAVIGATION - Scale on active
       ============================================ */}
       
       <div style={{
@@ -547,7 +589,7 @@ export default function ResidentDashboard() {
         right: 0,
         background: T.white,
         borderTop: `1px solid ${T.border}`,
-        padding: '6px 16px 18px',
+        padding: '6px 16px calc(18px + env(safe-area-inset-bottom))',
         backdropFilter: 'blur(10px)',
         zIndex: 100
       }}>
@@ -608,7 +650,7 @@ export default function ResidentDashboard() {
       {stats.dueAmount > 0 && (
         <div style={{ 
           position: 'fixed', 
-          bottom: 70, 
+          bottom: 'calc(70px + env(safe-area-inset-bottom))', 
           left: 20, 
           right: 20, 
           zIndex: 101,
@@ -640,8 +682,10 @@ export default function ResidentDashboard() {
                 color: T.orange,
                 fontSize: 12,
                 fontWeight: 600,
-                cursor: 'pointer'
+                cursor: 'pointer',
+                transition: 'transform 0.1s ease'
               }}
+              className="card-hover"
             >
               Pay Now
             </button>
