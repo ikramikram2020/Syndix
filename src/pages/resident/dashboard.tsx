@@ -5,7 +5,7 @@ import { T } from '../../styles/theme';
 import { 
   Home, CreditCard, Wrench, Bell, User, LogOut, 
   DollarSign, CheckCircle, Shield, Sparkles, Star, Award,
-  Clock, ChevronRight, Ticket
+  Clock, ChevronRight, Ticket, Zap
 } from 'lucide-react';
 
 // ============================================
@@ -30,6 +30,14 @@ export default function ResidentDashboard() {
     paidCount: 0,
     pendingCount: 0
   });
+
+  // Get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   // ============================================
   // INITIALIZATION
@@ -102,7 +110,6 @@ export default function ResidentDashboard() {
       
       const resident = JSON.parse(residentData);
       
-      // Fetch pending payments
       const { data: payments } = await supabase
         .from('payments')
         .select('*')
@@ -112,7 +119,6 @@ export default function ResidentDashboard() {
       const dueAmount = payments?.reduce((sum, p) => sum + (p.amount || 0), 0) || 0;
       const pendingCount = payments?.length || 0;
       
-      // Fetch paid payments count
       const { count: paidCount } = await supabase
         .from('payments')
         .select('*', { count: 'exact', head: true })
@@ -136,7 +142,7 @@ export default function ResidentDashboard() {
   };
 
   // ============================================
-  // NAVIGATION TABS
+  // NAVIGATION TABS (with scale effect)
   // ============================================
   
   const tabs = [
@@ -148,25 +154,19 @@ export default function ResidentDashboard() {
   ];
 
   // ============================================
-  // QUICK ACTIONS
+  // QUICK ACTIONS (Pay Fees highlighted)
   // ============================================
   
   const quickActions = [
-    { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.green },
-    { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange },
-    { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: T.teal },
-    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.navy },
+    { icon: CreditCard, label: 'Pay Fees', href: '/resident/payments', color: T.navy, primary: true },
+    { icon: Wrench, label: 'Maintenance', href: '/resident/maintenance', color: T.orange, primary: false },
+    { icon: Ticket, label: 'Tickets', href: '/resident/tickets', color: T.teal, primary: false },
+    { icon: Bell, label: 'News', href: '/resident/announcements', color: T.green, primary: false },
   ];
 
-  // ============================================
-  // RECENT ACTIVITY (static - can be dynamic)
-  // ============================================
-  
-  const recentActivity = [
-    { icon: CreditCard, label: 'Payment', date: '2 days ago', amount: '25,000 DZD', color: T.green, href: '/resident/payments' },
-    { icon: Wrench, label: 'Maintenance', date: '5 days ago', status: 'In Progress', color: T.orange, href: '/resident/maintenance' },
-    { icon: Bell, label: 'Announcement', date: '1 week ago', title: 'Building Update', color: T.teal, href: '/resident/announcements' },
-  ];
+  // Determine due amount styling (dynamic)
+  const dueAmountColor = stats.dueAmount > 0 ? T.orange : T.green;
+  const dueAmountMessage = stats.dueAmount > 0 ? `${stats.dueAmount.toLocaleString()} DZD` : 'All clear ✅';
 
   // ============================================
   // LOADING STATE
@@ -174,13 +174,7 @@ export default function ResidentDashboard() {
   
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        background: T.white,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
+      <div style={{ minHeight: '100vh', background: T.white, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ color: T.textMd }}>Loading dashboard...</p>
@@ -198,7 +192,7 @@ export default function ResidentDashboard() {
     <div style={{ 
       minHeight: '100vh', 
       background: T.canvasBg,
-      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      fontFamily: "'Outfit', 'Segoe UI', sans-serif",
       paddingBottom: 80
     }}>
       <style>{`
@@ -218,7 +212,7 @@ export default function ResidentDashboard() {
       `}</style>
 
       {/* ============================================
-          HEADER - Clean gradient without noise
+          HEADER - Purposeful, not just pretty
       ============================================ */}
       
       <div style={{
@@ -229,19 +223,26 @@ export default function ResidentDashboard() {
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Simple background circle (only 1) */}
         <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         
         <div style={{ position: 'relative', zIndex: 2 }}>
           {/* Header row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Sparkles size={14} color={T.orange} />
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>RESIDENT PORTAL</span>
               </div>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#fff' }}>Welcome back,</h1>
-              <h2 style={{ margin: '2px 0 0', fontSize: 28, fontWeight: 700, color: '#fff' }}>{residentName}</h2>
+              {/* Dynamic greeting with purpose */}
+              <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#fff' }}>
+                {getGreeting()}, {residentName.split(' ')[0]}
+              </h1>
+              {/* Action-oriented subtitle */}
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.6)' }}>
+                {stats.pendingCount > 0 
+                  ? `⚠️ You have ${stats.pendingCount} pending payment${stats.pendingCount > 1 ? 's' : ''}`
+                  : '✓ Your account is up to date'}
+              </p>
             </div>
             
             <button 
@@ -262,7 +263,7 @@ export default function ResidentDashboard() {
             </button>
           </div>
 
-          {/* Building Info Card - Glass effect */}
+          {/* Building Info Card */}
           <div style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(10px)',
@@ -274,11 +275,11 @@ export default function ResidentDashboard() {
             justifyContent: 'space-between'
           }}>
             <div>
-              <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Your Apartment</p>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>Your Apartment</p>
               <p style={{ margin: '2px 0 0', fontSize: 15, fontWeight: 600, color: '#fff' }}>{buildingName}</p>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Apartment No.</p>
+              <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.5)' }}>Apartment No.</p>
               <p style={{ margin: '2px 0 0', fontSize: 18, fontWeight: 700, color: T.orange }}>{apartmentNumber}</p>
             </div>
           </div>
@@ -286,22 +287,25 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          STATS CARDS - Primary card stands out
+          STATS CARDS - Dynamic due amount color
       ============================================ */}
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
           
-          {/* Primary Card - Due Amount (Bigger, Navy background) */}
+          {/* Primary Card - Due Amount with dynamic color */}
           <div className="fade-in-up card-hover" style={{ 
             background: T.navy, 
             borderRadius: 20, 
             padding: '16px',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <DollarSign size={20} color={T.orange} />
+            <DollarSign size={20} color={dueAmountColor} />
             <p style={{ margin: '8px 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Due Amount</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.orange }}>{stats.dueAmount.toLocaleString()} DZD</p>
+            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: dueAmountColor }}>{dueAmountMessage}</p>
+            {stats.dueAmount === 0 && (
+              <p style={{ margin: '6px 0 0', fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>No outstanding fees</p>
+            )}
           </div>
           
           {/* Secondary Card - Paid */}
@@ -335,7 +339,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          QUICK ACTIONS - Solid colors, no gradients
+          QUICK ACTIONS - Pay Fees is primary
       ============================================ */}
       
       <div style={{ padding: '24px 20px 0' }}>
@@ -354,16 +358,19 @@ export default function ResidentDashboard() {
                   onClick={() => router.push(action.href)}
                   className="card-hover"
                   style={{
-                    background: action.color,
+                    background: action.primary ? T.navy : action.color,
                     border: 'none',
                     borderRadius: 16,
-                    padding: '12px 8px',
+                    padding: action.primary ? '14px 8px' : '12px 8px',
                     textAlign: 'center',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    boxShadow: action.primary ? '0 4px 12px rgba(28,43,107,0.3)' : 'none'
                   }}
                 >
-                  <Icon size={20} color="#fff" style={{ margin: '0 auto 6px' }} />
-                  <p style={{ margin: 0, fontSize: 11, fontWeight: 500, color: '#fff' }}>{action.label}</p>
+                  <Icon size={action.primary ? 22 : 20} color="#fff" style={{ margin: '0 auto 6px' }} />
+                  <p style={{ margin: 0, fontSize: action.primary ? 12 : 11, fontWeight: action.primary ? 600 : 500, color: '#fff' }}>
+                    {action.label}
+                  </p>
                 </button>
               );
             })}
@@ -372,7 +379,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          TICKETS CARD - Brand colors (Teal + Navy)
+          TICKETS CARD - Better vertical layout
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -390,48 +397,51 @@ export default function ResidentDashboard() {
           <div style={{
             background: `linear-gradient(135deg, ${T.teal}, ${T.navy})`,
             borderRadius: 20,
-            padding: 16,
+            padding: 20,
             position: 'relative',
             overflow: 'hidden'
           }}>
             <div style={{ position: 'absolute', top: -20, right: -20, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-              <div style={{ display: 'flex', gap: 20 }}>
-                {/* Total */}
+            <div style={{ position: 'relative', zIndex: 2 }}>
+              {/* Total Tickets - Top */}
+              <div style={{ textAlign: 'center', marginBottom: 16 }}>
+                <Ticket size={24} color="#fff" style={{ margin: '0 auto 6px' }} />
+                <p style={{ margin: 0, fontSize: 32, fontWeight: 700, color: '#fff' }}>{ticketStats.pending + ticketStats.resolved}</p>
+                <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>Total Tickets</p>
+              </div>
+              
+              {/* Open / Resolved - 2 columns */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16, textAlign: 'center' }}>
                 <div>
-                  <Ticket size={20} color="#fff" />
-                  <p style={{ margin: '6px 0 2px', fontSize: 24, fontWeight: 700, color: '#fff' }}>{ticketStats.pending + ticketStats.resolved}</p>
-                  <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>Total</p>
-                </div>
-                {/* Open */}
-                <div>
-                  <Clock size={18} color={T.orange} />
-                  <p style={{ margin: '6px 0 2px', fontSize: 22, fontWeight: 700, color: T.orange }}>{ticketStats.pending}</p>
+                  <Clock size={18} color={T.orange} style={{ margin: '0 auto 4px' }} />
+                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: T.orange }}>{ticketStats.pending}</p>
                   <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>Open</p>
                 </div>
-                {/* Resolved */}
                 <div>
-                  <CheckCircle size={18} color={T.green} />
-                  <p style={{ margin: '6px 0 2px', fontSize: 22, fontWeight: 700, color: T.green }}>{ticketStats.resolved}</p>
+                  <CheckCircle size={18} color={T.green} style={{ margin: '0 auto 4px' }} />
+                  <p style={{ margin: 0, fontSize: 24, fontWeight: 700, color: T.green }}>{ticketStats.resolved}</p>
                   <p style={{ margin: 0, fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>Resolved</p>
                 </div>
               </div>
               
+              {/* Button - Full width */}
               <button
                 onClick={() => router.push('/resident/tickets')}
                 style={{
-                  padding: '8px 14px',
+                  width: '100%',
+                  padding: '10px',
                   background: 'rgba(255,255,255,0.15)',
                   border: 'none',
-                  borderRadius: 20,
+                  borderRadius: 30,
                   color: '#fff',
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 500,
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
                 }}
               >
-                New Ticket +
+                + New Ticket
               </button>
             </div>
           </div>
@@ -439,7 +449,7 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          RECENT ACTIVITY - Clean, minimal
+          RECENT ACTIVITY - Clean, borderless, lighter
       ============================================ */}
       
       <div style={{ padding: '0 20px' }}>
@@ -449,61 +459,85 @@ export default function ResidentDashboard() {
             <span style={{ fontSize: 11, color: T.textSm }}>Last updates</span>
           </div>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {recentActivity.map((activity, index) => {
-              const Icon = activity.icon;
-              return (
+          {stats.pendingCount === 0 && ticketStats.pending === 0 ? (
+            // Empty State
+            <div style={{
+              background: T.white,
+              borderRadius: 16,
+              padding: '32px 20px',
+              textAlign: 'center',
+              border: `1px solid ${T.border}`
+            }}>
+              <Zap size={32} color={T.textSm} style={{ margin: '0 auto 12px' }} />
+              <p style={{ margin: 0, fontSize: 13, color: T.textMd }}>No recent activity yet</p>
+              <p style={{ margin: '4px 0 0', fontSize: 11, color: T.textSm }}>Your activity will appear here</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {/* Dynamic activity based on actual data */}
+              {stats.pendingCount > 0 && (
                 <div 
-                  key={index}
                   className="card-hover"
                   style={{
-                    background: T.white,
-                    borderRadius: 14,
-                    padding: '12px 14px',
+                    background: 'transparent',
+                    borderRadius: 12,
+                    padding: '10px 12px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 12,
                     cursor: 'pointer',
-                    border: `1px solid ${T.border}`
+                    transition: 'background 0.2s'
                   }}
-                  onClick={() => router.push(activity.href)}
+                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => router.push('/resident/payments')}
                 >
-                  {/* Icon - Neutral background */}
-                  <div style={{ 
-                    width: 40, 
-                    height: 40, 
-                    borderRadius: 12, 
-                    background: T.surface, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center' 
-                  }}>
-                    <Icon size={18} color={T.textMd} />
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.orangeLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <DollarSign size={16} color={T.orange} />
                   </div>
-                  
-                  {/* Content */}
                   <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: T.navy }}>{activity.label}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>{activity.date}</p>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>Pending Payment</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>You have {stats.pendingCount} unpaid invoice{stats.pendingCount > 1 ? 's' : ''}</p>
                   </div>
-                  
-                  {/* Status/Amount */}
-                  <div>
-                    {activity.amount && <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: T.green }}>{activity.amount}</p>}
-                    {activity.status && <p style={{ margin: 0, fontSize: 10, padding: '2px 8px', borderRadius: 10, background: `${T.orange}15`, color: T.orange }}>{activity.status}</p>}
-                    {activity.title && <p style={{ margin: 0, fontSize: 12, color: T.textMd }}>{activity.title}</p>}
-                  </div>
-                  
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: T.orange }}>{stats.dueAmount.toLocaleString()} DZD</p>
                   <ChevronRight size={14} color={T.textSm} />
                 </div>
-              );
-            })}
-          </div>
+              )}
+              
+              {ticketStats.pending > 0 && (
+                <div 
+                  className="card-hover"
+                  style={{
+                    background: 'transparent',
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    cursor: 'pointer',
+                    transition: 'background 0.2s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = T.surface}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  onClick={() => router.push('/resident/tickets')}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: T.tealLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ticket size={16} color={T.teal} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>Open Tickets</p>
+                    <p style={{ margin: '2px 0 0', fontSize: 10, color: T.textSm }}>{ticketStats.pending} ticket{ticketStats.pending > 1 ? 's' : ''} awaiting response</p>
+                  </div>
+                  <ChevronRight size={14} color={T.textSm} />
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* ============================================
-          BOTTOM TAB NAVIGATION - Clean, glass-like
+          BOTTOM TAB NAVIGATION - With scale animation
       ============================================ */}
       
       <div style={{
@@ -538,7 +572,8 @@ export default function ResidentDashboard() {
                   cursor: 'pointer',
                   padding: '6px 10px',
                   borderRadius: 10,
-                  transition: 'all 0.15s'
+                  transition: 'all 0.2s ease',
+                  transform: isActive ? 'scale(1.05)' : 'scale(1)'
                 }}
               >
                 <div style={{
@@ -548,7 +583,8 @@ export default function ResidentDashboard() {
                   background: isActive ? T.navy : 'transparent',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  transition: 'all 0.2s'
                 }}>
                   <Icon size={20} color={isActive ? '#fff' : T.textMd} />
                 </div>
@@ -565,7 +601,10 @@ export default function ResidentDashboard() {
         </div>
       </div>
 
-      {/* Attention Section - If user has unpaid fees */}
+      {/* ============================================
+          ATTENTION SECTION - Floating CTA (only when needed)
+      ============================================ */}
+      
       {stats.dueAmount > 0 && (
         <div style={{ 
           position: 'fixed', 
