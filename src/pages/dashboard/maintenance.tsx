@@ -62,7 +62,6 @@ export default function MaintenanceManagement() {
       .maybeSingle();
     
     if (buildingError || !buildingData) {
-      console.error('No building found for this syndic');
       setLoading(false);
       return;
     }
@@ -73,40 +72,32 @@ export default function MaintenanceManagement() {
 
   const fetchRequests = async (buildingId: string) => {
     try {
-      // Get all maintenance requests for this building
       const { data: requestsData, error: requestsError } = await supabase
         .from('maintenance_requests')
         .select('*')
         .eq('building_id', buildingId)
         .order('created_at', { ascending: false });
       
-      if (requestsError || !requestsData) {
+      if (requestsError || !requestsData || requestsData.length === 0) {
         setRequests([]);
         setLoading(false);
         return;
       }
       
-      if (requestsData.length === 0) {
-        setRequests([]);
-        setLoading(false);
-        return;
-      }
-      
-      // Get unique resident IDs
       const residentIds = [...new Set(requestsData.map(r => r.resident_id).filter(Boolean))];
       
       if (residentIds.length === 0) {
         const formattedRequests: MaintenanceRequest[] = requestsData.map((req: any) => ({
           id: req.id,
-          title: req.title,
-          description: req.description,
-          priority: req.priority,
-          status: req.status,
-          created_at: req.created_at,
+          title: req.title || 'No title',
+          description: req.description || 'No description',
+          priority: req.priority || 'medium',
+          status: req.status || 'pending',
+          created_at: req.created_at || new Date().toISOString(),
           completed_at: req.completed_at,
           resident_id: req.resident_id,
-          resident_name: 'Unknown',
-          apartment_number: '?',
+          resident_name: 'Unknown Resident',
+          apartment_number: 'N/A',
           resident_phone: null,
           resident_email: null
         }));
@@ -115,7 +106,6 @@ export default function MaintenanceManagement() {
         return;
       }
       
-      // Fetch all residents with their apartment info
       const { data: residentsData } = await supabase
         .from('residents')
         .select(`
@@ -129,31 +119,29 @@ export default function MaintenanceManagement() {
         `)
         .in('id', residentIds);
       
-      // Create resident map
       const residentMap = new Map();
       residentsData?.forEach((resident: any) => {
         residentMap.set(resident.id, {
-          full_name: resident.full_name,
-          apartment_number: resident.apartments?.apartment_number || '?',
+          full_name: resident.full_name || 'Unknown',
+          apartment_number: resident.apartments?.apartment_number || 'N/A',
           phone: resident.phone,
           email: resident.email
         });
       });
       
-      // Merge data
       const formattedRequests: MaintenanceRequest[] = requestsData.map((req: any) => {
         const resident = residentMap.get(req.resident_id);
         return {
           id: req.id,
-          title: req.title,
-          description: req.description,
-          priority: req.priority,
-          status: req.status,
-          created_at: req.created_at,
+          title: req.title || 'No title',
+          description: req.description || 'No description',
+          priority: req.priority || 'medium',
+          status: req.status || 'pending',
+          created_at: req.created_at || new Date().toISOString(),
           completed_at: req.completed_at,
           resident_id: req.resident_id,
-          resident_name: resident?.full_name || 'Unknown',
-          apartment_number: resident?.apartment_number || '?',
+          resident_name: resident?.full_name || 'Unknown Resident',
+          apartment_number: resident?.apartment_number || 'N/A',
           resident_phone: resident?.phone || null,
           resident_email: resident?.email || null
         };
@@ -370,7 +358,6 @@ export default function MaintenanceManagement() {
           <div style={{ gridColumn:'span 2', background:T.white, borderRadius:18, padding:'48px 20px', textAlign:'center', border:`1px solid ${T.border}` }}>
             <Wrench size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
             <p style={{ margin:0, fontSize:13, color:T.textSm }}>No maintenance requests yet</p>
-            <p style={{ margin:'8px 0 0', fontSize:11, color:T.textSm }}>Residents will appear here when they submit requests</p>
           </div>
         ) : (
           requests.map((req) => {
@@ -400,9 +387,8 @@ export default function MaintenanceManagement() {
                   </div>
                   
                   <h3 style={{ margin:'0 0 8px', fontSize:16, fontWeight:700, color:T.navy }}>{req.title}</h3>
-                  <p style={{ margin:'0 0 12px', fontSize:13, color:T.textMd, lineHeight:1.5 }}>{req.description.substring(0, 80)}...</p>
+                  <p style={{ margin:'0 0 12px', fontSize:13, color:T.textMd, lineHeight:1.5 }}>{(req.description || '').substring(0, 80)}...</p>
                   
-                  {/* Resident Info */}
                   <div style={{
                     background: T.surface,
                     borderRadius: 12,
@@ -411,11 +397,11 @@ export default function MaintenanceManagement() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <User size={14} color={T.teal} />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: T.navy }}>{req.resident_name}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: T.navy }}>{req.resident_name || 'Unknown'}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <Home size={14} color={T.orange} />
-                      <span style={{ fontSize: 12, color: T.textMd }}>Apartment {req.apartment_number}</span>
+                      <span style={{ fontSize: 12, color: T.textMd }}>Apartment {req.apartment_number || 'N/A'}</span>
                     </div>
                   </div>
                   
@@ -441,8 +427,8 @@ export default function MaintenanceManagement() {
           }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
               <div>
-                <h3 style={{ margin:0, fontSize:20, fontWeight:800, color:T.navy }}>{selectedRequest.title}</h3>
-                <p style={{ margin:'4px 0 0', fontSize:12, color:T.textSm }}>Request ID: {selectedRequest.id.slice(0,8)}</p>
+                <h3 style={{ margin:0, fontSize:20, fontWeight:800, color:T.navy }}>{selectedRequest.title || 'No Title'}</h3>
+                <p style={{ margin:'4px 0 0', fontSize:12, color:T.textSm }}>Request ID: {selectedRequest.id?.slice(0,8) || 'Unknown'}</p>
               </div>
               <button onClick={() => setSelectedRequest(null)} style={{ padding:8, background:T.surface, border:'none', borderRadius:10, cursor:'pointer' }}>
                 <X size={18} color={T.textMd} />
@@ -458,11 +444,11 @@ export default function MaintenanceManagement() {
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                   <User size={14} color={T.textSm} />
-                  <span style={{ fontSize:13, color:T.text }}>{selectedRequest.resident_name}</span>
+                  <span style={{ fontSize:13, color:T.text }}>{selectedRequest.resident_name || 'Unknown'}</span>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                   <Home size={14} color={T.textSm} />
-                  <span style={{ fontSize:13, color:T.text }}>Apartment {selectedRequest.apartment_number}</span>
+                  <span style={{ fontSize:13, color:T.text }}>Apartment {selectedRequest.apartment_number || 'N/A'}</span>
                 </div>
                 {selectedRequest.resident_phone && (
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -482,10 +468,10 @@ export default function MaintenanceManagement() {
             {/* Request Details */}
             <div style={{ marginBottom:20 }}>
               <h4 style={{ margin:'0 0 8px', fontSize:14, fontWeight:600, color:T.navy }}>Description</h4>
-              <p style={{ margin:0, fontSize:13, color:T.text, lineHeight:1.5 }}>{selectedRequest.description}</p>
+              <p style={{ margin:0, fontSize:13, color:T.text, lineHeight:1.5 }}>{selectedRequest.description || 'No description provided'}</p>
               <div style={{ display:'flex', alignItems:'center', gap:12, marginTop:12 }}>
                 <Clock size={12} color={T.textSm} />
-                <span style={{ fontSize:11, color:T.textSm }}>Submitted: {new Date(selectedRequest.created_at).toLocaleString()}</span>
+                <span style={{ fontSize:11, color:T.textSm }}>Submitted: {selectedRequest.created_at ? new Date(selectedRequest.created_at).toLocaleString() : 'Unknown'}</span>
               </div>
             </div>
 
@@ -495,14 +481,14 @@ export default function MaintenanceManagement() {
                 <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Priority</p>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
                   {getPriorityIcon(selectedRequest.priority)}
-                  <span style={{ fontSize:13, fontWeight:600, color:T.navy, textTransform:'capitalize' }}>{selectedRequest.priority}</span>
+                  <span style={{ fontSize:13, fontWeight:600, color:T.navy, textTransform:'capitalize' }}>{selectedRequest.priority || 'medium'}</span>
                 </div>
               </div>
               <div style={{ flex:1, background:T.surface, borderRadius:12, padding:12, textAlign:'center' }}>
                 <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Status</p>
                 <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  {getStatusBadge(selectedRequest.status).icon({ size:14, color: getStatusBadge(selectedRequest.status).text })}
-                  <span style={{ fontSize:13, fontWeight:600, color:getStatusBadge(selectedRequest.status).text }}>{getStatusBadge(selectedRequest.status).label}</span>
+                  {getStatusBadge(selectedRequest.status).icon({ size:14, color: getStatusBadge(selectedRequest.status || 'pending').text })}
+                  <span style={{ fontSize:13, fontWeight:600, color:getStatusBadge(selectedRequest.status || 'pending').text }}>{getStatusBadge(selectedRequest.status || 'pending').label}</span>
                 </div>
               </div>
             </div>
@@ -549,7 +535,7 @@ export default function MaintenanceManagement() {
                           {new Date(note.created_at).toLocaleString()}
                         </span>
                       </div>
-                      <p style={{ margin:0, fontSize:13, color:T.text, lineHeight:1.4 }}>{note.message}</p>
+                      <p style={{ margin:0, fontSize:13, color:T.text, lineHeight:1.4 }}>{note.message || ''}</p>
                     </div>
                   ))}
                 </div>
@@ -564,7 +550,7 @@ export default function MaintenanceManagement() {
                   rows={3} 
                   value={newMessage} 
                   onChange={(e) => setNewMessage(e.target.value)} 
-                  placeholder="Type your message here... The resident will be able to reply." 
+                  placeholder="Type your message here..." 
                   style={{ 
                     flex:1, 
                     padding:'12px', 
@@ -575,8 +561,6 @@ export default function MaintenanceManagement() {
                     outline:'none', 
                     resize:'vertical' 
                   }} 
-                  onFocus={e => e.currentTarget.style.borderColor = T.teal} 
-                  onBlur={e => e.currentTarget.style.borderColor = T.border} 
                 />
                 <button 
                   onClick={sendMessage} 
@@ -590,8 +574,7 @@ export default function MaintenanceManagement() {
                     cursor: newMessage.trim() ? 'pointer' : 'not-allowed', 
                     display:'flex', 
                     alignItems:'center', 
-                    justifyContent:'center',
-                    transition:'all 0.2s'
+                    justifyContent:'center'
                   }}
                 >
                   <Send size={18} color="#fff" />
