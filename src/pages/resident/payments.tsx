@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   CreditCard, CheckCircle, Clock, AlertCircle,
-  ArrowLeft, X, Lock, Wallet, Calendar, Bell
+  ArrowLeft, X, Lock, Wallet, Calendar
 } from 'lucide-react';
 
 interface Payment {
@@ -49,54 +49,53 @@ export default function ResidentPayments() {
   }, []);
 
   const fetchPayments = async (residentId: string) => {
-  setLoading(true);
-  
-  try {
-    // Simplified query - remove the nested select that's causing the 406 error
-    const { data, error } = await supabase
-      .from('payments')
-      .select('*')  // Just get payments, no nested relations
-      .eq('resident_id', residentId)
-      .order('month', { ascending: false });
+    setLoading(true);
     
-    if (error) {
-      console.error('Error fetching payments:', error);
-    } else {
-      setPayments(data || []);
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select('*')
+        .eq('resident_id', residentId)
+        .order('month', { ascending: false });
+      
+      if (error) {
+        console.error('Error fetching payments:', error);
+        setPayments([]);
+      } else {
+        setPayments(data || []);
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setPayments([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('Fetch error:', err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const processPayment = async (payment: Payment) => {
-    if (!resident) return;
+    if (!resident) {
+      alert('Resident information not found');
+      return;
+    }
     
     setProcessing(true);
     setProcessingId(payment.id);
     
     try {
-      // 1. Get building_id and syndic_id from resident
+      console.log('Processing payment for resident:', resident.id);
+      
+      // 1. Get building_id from resident - using maybeSingle() to avoid 0 rows error
       const { data: residentData, error: residentError } = await supabase
         .from('residents')
         .select('building_id')
         .eq('id', resident.id)
-        .single();
+        .maybeSingle();
       
-      if (residentError) throw residentError;
+      if (residentError) {
+        console.error('Resident error:', residentError);
+      }
       
-      // 2. Get syndic_id from building
-      const { data: building, error: buildingError } = await supabase
-        .from('buildings')
-        .select('syndic_id, name')
-        .eq('id', residentData.building_id)
-        .single();
-      
-      if (buildingError) throw buildingError;
-      
-      // 3. Update payment status in database
+      // 2. Update payment status in database
       const { error: updateError } = await supabase
         .from('payments')
         .update({ 
@@ -105,54 +104,70 @@ export default function ResidentPayments() {
         })
         .eq('id', payment.id);
       
-      if (updateError) throw new Error(updateError.message);
-      
-      // 4. Create transaction record
-      const { error: transactionError } = await supabase
-        .from('transactions')
-        .insert([{
-          payment_id: payment.id,
-          resident_id: resident.id,
-          building_id: residentData.building_id,
-          amount: payment.amount,
-          status: 'completed',
-          payment_method: 'bank_transfer',
-          transaction_id: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          paid_at: new Date().toISOString()
-        }]);
-      
-      if (transactionError) {
-        console.error('Transaction record error:', transactionError);
+      if (updateError) {
+        throw new Error('Failed to update payment: ' + updateError.message);
       }
       
-      // 5. Send notification to SYNDIC (not resident)
-      const { error: notificationError } = await supabase
-        .from('notifications')
-        .insert([{
-          user_id: building.syndic_id,
-          title: '💰 Payment Received',
-          message: `${resident.full_name || resident.name || 'Resident'} from ${building.name} paid ${payment.amount.toLocaleString()} DZD for ${new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`,
-          type: 'payment',
-          read: false,
-          created_at: new Date().toISOString(),
-          data: JSON.stringify({
+      // 3. Create transaction record (optional, don't fail if this errors)
+      try {
+        const { error: transactionError } = await supabase
+          .from('transactions')
+          .insert([{
             payment_id: payment.id,
             resident_id: resident.id,
+            building_id: residentData?.building_id || null,
             amount: payment.amount,
-            month: payment.month
-          })
-        }]);
-      
-      if (notificationError) {
-        console.error('Notification error:', notificationError);
-      } else {
-        console.log('✅ Syndic notified successfully');
+            status: 'completed',
+            payment_method: 'bank_transfer',
+            transaction_id: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            paid_at: new Date().toISOString()
+          }]);
+        
+        if (transactionError) {
+          console.error('Transaction record error:', transactionError);
+        }
+      } catch (err) {
+        console.error('Transaction insert error:', err);
       }
       
-      // 6. Refresh the payments list
+      // 4. Send notification to syndic if we have building_id
+      if (residentData?.building_id) {
+        const { data: building, error: buildingError } = await supabase
+          .from('buildings')
+          .select('syndic_id, name')
+          .eq('id', residentData.building_id)
+          .maybeSingle();
+        
+        if (!buildingError && building?.syndic_id) {
+          const { error: notificationError } = await supabase
+            .from('notifications')
+            .insert([{
+              user_id: building.syndic_id,
+              title: '💰 Payment Received',
+              message: `${resident.full_name || resident.name || 'Resident'} from ${building.name || 'your building'} paid ${payment.amount.toLocaleString()} DZD for ${new Date(payment.month).toLocaleDateString('en', { month: 'long', year: 'numeric' })}`,
+              type: 'payment',
+              read: false,
+              created_at: new Date().toISOString(),
+              data: JSON.stringify({
+                payment_id: payment.id,
+                resident_id: resident.id,
+                amount: payment.amount,
+                month: payment.month
+              })
+            }]);
+          
+          if (notificationError) {
+            console.error('Notification error:', notificationError);
+          } else {
+            console.log('✅ Syndic notified successfully');
+          }
+        }
+      }
+      
+      // 5. Refresh the payments list
       await fetchPayments(resident.id);
       
-      // 7. Show success message
+      // 6. Show success message
       alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid. The syndic has been notified.`);
       setSelectedPayment(null);
       
@@ -218,9 +233,6 @@ export default function ResidentPayments() {
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
         }
         .slide-up {
           animation: slideUp 0.3s ease-out;
