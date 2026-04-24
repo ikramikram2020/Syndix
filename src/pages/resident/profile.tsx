@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { useResidentAuth } from '../../hooks/useResidentAuth';
 import { T } from '../../styles/theme';
 import { 
   User, Mail, Phone, Home, Building2, 
@@ -12,7 +11,7 @@ import {
 
 export default function ResidentProfile() {
   const router = useRouter();
-  const { resident, logout } = useResidentAuth();
+  const [resident, setResident] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -22,26 +21,73 @@ export default function ResidentProfile() {
   const [saving, setSaving] = useState(false);
   const [memberSince, setMemberSince] = useState('');
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [buildingName, setBuildingName] = useState('');
+  const [apartmentNumber, setApartmentNumber] = useState('');
 
+  // Get resident from localStorage directly
   useEffect(() => {
-    if (resident) {
+    const token = localStorage.getItem('resident_token');
+    const residentData = localStorage.getItem('resident_data');
+    
+    if (!token || !residentData) {
+      router.push('/resident');
+      return;
+    }
+    
+    try {
+      const resident = JSON.parse(residentData);
+      setResident(resident);
       setFormData({
         phone: resident.phone || '',
         email: resident.email || ''
       });
+      setApartmentNumber(resident.apartment_number || '?');
       
-      // Get member since date from resident object or set default
-      // Use any to access created_at as it might exist in the resident object
-      const residentAny = resident as any;
-      if (residentAny.created_at) {
-        const date = new Date(residentAny.created_at);
+      // Fetch building name
+      if (resident.apartment_number) {
+        fetchBuildingInfo(resident.apartment_number);
+      }
+      
+      // Set member since
+      if (resident.created_at) {
+        const date = new Date(resident.created_at);
         setMemberSince(date.toLocaleDateString('en', { month: 'long', year: 'numeric' }));
       } else {
         setMemberSince('2024');
       }
+      
       setLoading(false);
+    } catch (err) {
+      console.error('Error parsing resident:', err);
+      setLoading(false);
+      router.push('/resident');
     }
-  }, [resident]);
+  }, []);
+
+  const fetchBuildingInfo = async (aptNumber: string) => {
+    try {
+      // Get building_id from apartment
+      const { data: apartment } = await supabase
+        .from('apartments')
+        .select('building_id')
+        .eq('apartment_number', aptNumber)
+        .maybeSingle();
+      
+      if (apartment?.building_id) {
+        const { data: building } = await supabase
+          .from('buildings')
+          .select('name')
+          .eq('id', apartment.building_id)
+          .maybeSingle();
+        
+        if (building) {
+          setBuildingName(building.name);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching building:', err);
+    }
+  };
 
   const saveChanges = async () => {
     if (!resident) return;
@@ -58,9 +104,10 @@ export default function ResidentProfile() {
     if (error) {
       alert('Error updating profile: ' + error.message);
     } else {
-      // Update local resident object
-      resident.phone = formData.phone;
-      resident.email = formData.email;
+      // Update local storage
+      const updatedResident = { ...resident, phone: formData.phone, email: formData.email };
+      localStorage.setItem('resident_data', JSON.stringify(updatedResident));
+      setResident(updatedResident);
       setEditing(false);
       alert('Profile updated successfully!');
     }
@@ -69,10 +116,11 @@ export default function ResidentProfile() {
 
   const handleLogout = () => {
     setShowLogoutConfirm(false);
-    logout();
+    localStorage.clear();
+    router.push('/resident');
   };
 
-  if (loading || !resident) {
+  if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -81,11 +129,16 @@ export default function ResidentProfile() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#fff' }}>Loading profile...</p>
+        </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
+
+  if (!resident) return null;
 
   return (
     <div style={{ 
@@ -106,6 +159,9 @@ export default function ResidentProfile() {
         @keyframes pulse {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.05); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
         .fade-in-up {
           animation: fadeInUp 0.5s ease both;
@@ -200,11 +256,11 @@ export default function ResidentProfile() {
               border: '3px solid rgba(255,255,255,0.2)'
             }}>
               <span style={{ fontSize: 36, fontWeight: 700, color: '#fff' }}>
-                {resident.full_name?.charAt(0).toUpperCase()}
+                {resident.full_name?.charAt(0).toUpperCase() || 'R'}
               </span>
             </div>
             <h2 style={{ margin: '12px 0 4px', fontSize: 22, fontWeight: 800, color: '#fff' }}>
-              {resident.full_name}
+              {resident.full_name || 'Resident'}
             </h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               <Shield size={12} color={T.green} />
@@ -240,7 +296,7 @@ export default function ResidentProfile() {
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>APARTMENT</p>
                 <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: T.navy }}>
-                  Apartment {resident.apartment_number || '?'}
+                  Apartment {apartmentNumber}
                 </p>
               </div>
             </div>
@@ -259,10 +315,7 @@ export default function ResidentProfile() {
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>BUILDING</p>
                 <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: T.navy }}>
-                  {resident.building_name || 'Your Building'}
-                </p>
-                <p style={{ margin: '2px 0 0', fontSize: 11, color: T.textSm }}>
-                  {resident.building_city || ''}
+                  {buildingName || 'Your Building'}
                 </p>
               </div>
             </div>
@@ -405,8 +458,6 @@ export default function ResidentProfile() {
                   cursor: 'pointer',
                   transition: 'all 0.15s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = T.surface}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 Cancel
               </button>
@@ -426,8 +477,6 @@ export default function ResidentProfile() {
                   opacity: saving ? 0.7 : 1,
                   transition: 'all 0.15s'
                 }}
-                onMouseEnter={e => { if (!saving) e.currentTarget.style.background = T.navyDeep }}
-                onMouseLeave={e => { if (!saving) e.currentTarget.style.background = T.navy }}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
@@ -459,8 +508,6 @@ export default function ResidentProfile() {
                   gap: 8,
                   transition: 'all 0.15s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = '#FEE2E2'}
-                onMouseLeave={e => e.currentTarget.style.background = T.redLight}
               >
                 <LogOut size={18} />
                 Sign Out
