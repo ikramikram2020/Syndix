@@ -7,6 +7,10 @@ import {
   ArrowLeft, X, Lock, Wallet, Calendar
 } from 'lucide-react';
 
+// ============================================
+// TYPESCRIPT INTERFACES
+// ============================================
+
 interface Payment {
   id: string;
   amount: number;
@@ -17,21 +21,35 @@ interface Payment {
   description?: string;
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function ResidentPayments() {
   const router = useRouter();
-  const [resident, setResident] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [filter, setFilter] = useState('all');
-  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // ============================================
+  // STATE MANAGEMENT
+  // ============================================
+  
+  const [resident, setResident] = useState<any>(null);        // Current resident data
+  const [loading, setLoading] = useState(true);              // Loading state
+  const [payments, setPayments] = useState<Payment[]>([]);    // List of payments
+  const [filter, setFilter] = useState('all');               // Filter: all, pending, paid
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null); // Payment being processed
+  const [processing, setProcessing] = useState(false);       // Processing state
+  const [processingId, setProcessingId] = useState<string | null>(null); // ID of payment being processed
 
-  // Get resident from localStorage
+  // ============================================
+  // INITIALIZATION - Load resident data from localStorage
+  // ============================================
+  
   useEffect(() => {
+    // Get saved session data
     const token = localStorage.getItem('resident_token');
     const residentData = localStorage.getItem('resident_data');
     
+    // No valid session → redirect to login
     if (!token || !residentData) {
       router.push('/resident');
       return;
@@ -40,7 +58,7 @@ export default function ResidentPayments() {
     try {
       const resident = JSON.parse(residentData);
       setResident(resident);
-      fetchPayments(resident.id);
+      fetchPayments(resident.id);  // Load their payment history
     } catch (err) {
       console.error('Error parsing resident:', err);
       setLoading(false);
@@ -48,6 +66,14 @@ export default function ResidentPayments() {
     }
   }, []);
 
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+  
+  /**
+   * Fetch all payments for the current resident
+   * Orders by newest month first
+   */
   const fetchPayments = async (residentId: string) => {
     setLoading(true);
     
@@ -72,6 +98,18 @@ export default function ResidentPayments() {
     }
   };
 
+  // ============================================
+  // PAYMENT PROCESSING
+  // ============================================
+  
+  /**
+   * Process a payment (mark as paid)
+   * 1. Get building_id for syndic notification
+   * 2. Update payment status in database
+   * 3. Create transaction record for audit trail
+   * 4. Notify syndic via notifications table
+   * 5. Refresh the payments list
+   */
   const processPayment = async (payment: Payment) => {
     if (!resident) {
       alert('Resident information not found');
@@ -84,7 +122,7 @@ export default function ResidentPayments() {
     try {
       console.log('Processing payment for resident:', resident.id);
       
-      // 1. Get building_id from resident - using maybeSingle() to avoid 0 rows error
+      // Step 1: Get building_id from resident (needed to find syndic)
       const { data: residentData, error: residentError } = await supabase
         .from('residents')
         .select('building_id')
@@ -95,7 +133,7 @@ export default function ResidentPayments() {
         console.error('Resident error:', residentError);
       }
       
-      // 2. Update payment status in database
+      // Step 2: Update payment status to 'paid'
       const { error: updateError } = await supabase
         .from('payments')
         .update({ 
@@ -108,7 +146,7 @@ export default function ResidentPayments() {
         throw new Error('Failed to update payment: ' + updateError.message);
       }
       
-      // 3. Create transaction record (optional, don't fail if this errors)
+      // Step 3: Create transaction record (audit trail)
       try {
         const { error: transactionError } = await supabase
           .from('transactions')
@@ -130,7 +168,7 @@ export default function ResidentPayments() {
         console.error('Transaction insert error:', err);
       }
       
-      // 4. Send notification to syndic if we have building_id
+      // Step 4: Notify syndic about the payment
       if (residentData?.building_id) {
         const { data: building, error: buildingError } = await supabase
           .from('buildings')
@@ -164,10 +202,10 @@ export default function ResidentPayments() {
         }
       }
       
-      // 5. Refresh the payments list
+      // Step 5: Refresh payments list
       await fetchPayments(resident.id);
       
-      // 6. Show success message
+      // Step 6: Show success message
       alert(`✅ Payment successful! ${payment.amount.toLocaleString()} DZD has been paid. The syndic has been notified.`);
       setSelectedPayment(null);
       
@@ -180,12 +218,18 @@ export default function ResidentPayments() {
     }
   };
 
+  // ============================================
+  // UI HELPER FUNCTIONS
+  // ============================================
+  
+  // Filter payments based on selected filter
   const filteredPayments = payments.filter(p => {
     if (filter === 'paid') return p.status === 'paid';
     if (filter === 'pending') return p.status === 'pending';
     return true;
   });
 
+  // Calculate payment statistics
   const stats = {
     total: payments.reduce((sum, p) => sum + p.amount, 0),
     paid: payments.filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0),
@@ -193,6 +237,7 @@ export default function ResidentPayments() {
     collectionRate: payments.length > 0 ? (payments.filter(p => p.status === 'paid').length / payments.length) * 100 : 0
   };
 
+  // Get status badge styling (color, icon, label)
   const getStatusBadge = (status: string) => {
     switch(status) {
       case 'paid':
@@ -204,12 +249,30 @@ export default function ResidentPayments() {
     }
   };
 
+  // ============================================
+  // LOADING SCREEN (Clean white)
+  // ============================================
+  
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: T.canvasBg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ 
+        minHeight: '100vh', 
+        background: '#FFFFFF',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
+      }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.textMd }}>Loading payments...</p>
+          <div style={{ 
+            width: 48, 
+            height: 48, 
+            borderRadius: '50%', 
+            border: `3px solid ${T.orange}`, 
+            borderTopColor: 'transparent', 
+            animation: 'spin 0.75s linear infinite',
+            margin: '0 auto 16px'
+          }} />
+          <p style={{ color: T.textMd, fontSize: 14 }}>Loading payments...</p>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
@@ -218,12 +281,19 @@ export default function ResidentPayments() {
 
   if (!resident) return null;
 
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+  
+  // Safe area bottom padding for mobile devices
+  const safeBottomPadding = 'calc(100px + env(safe-area-inset-bottom))';
+  
   return (
     <div style={{ 
       minHeight: '100vh', 
       background: T.canvasBg,
-      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
-      paddingBottom: 100
+      fontFamily: "'Outfit', 'Segoe UI', sans-serif",
+      paddingBottom: safeBottomPadding
     }}>
       <style>{`
         @keyframes slideUp {
@@ -234,15 +304,27 @@ export default function ResidentPayments() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
         .slide-up {
           animation: slideUp 0.3s ease-out;
         }
         .fade-in {
           animation: fadeIn 0.4s ease both;
         }
+        .card-hover {
+          transition: transform 0.1s ease;
+        }
+        .card-hover:active {
+          transform: scale(0.98);
+        }
       `}</style>
 
-      {/* Header */}
+      {/* ============================================
+          HEADER SECTION
+      ============================================ */}
+      
       <div style={{
         background: `linear-gradient(135deg, ${T.navy}, ${T.teal})`,
         padding: '24px 20px 32px',
@@ -250,6 +332,7 @@ export default function ResidentPayments() {
         borderBottomRightRadius: 24
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* Back button */}
           <button 
             onClick={() => router.back()} 
             style={{
@@ -266,6 +349,8 @@ export default function ResidentPayments() {
           >
             <ArrowLeft size={20} color="#fff" />
           </button>
+          
+          {/* Title */}
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>Payments</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>View and pay your monthly fees</p>
@@ -273,7 +358,10 @@ export default function ResidentPayments() {
         </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* ============================================
+          STATISTICS CARDS - Payment summary
+      ============================================ */}
+      
       <div style={{ padding: '0 16px', marginTop: -20 }}>
         <div className="fade-in" style={{
           background: T.white,
@@ -282,23 +370,31 @@ export default function ResidentPayments() {
           boxShadow: '0 4px 12px rgba(27,43,107,0.08)',
           border: `1px solid ${T.border}`
         }}>
+          {/* 3-column stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {/* Total Amount */}
             <div style={{ textAlign: 'center' }}>
               <Wallet size={20} color={T.teal} style={{ margin: '0 auto 4px' }} />
               <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Total</p>
               <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.navy }}>{stats.total.toLocaleString()} DZD</p>
             </div>
+            
+            {/* Paid Amount */}
             <div style={{ textAlign: 'center' }}>
               <CheckCircle size={20} color={T.green} style={{ margin: '0 auto 4px' }} />
               <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Paid</p>
               <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.green }}>{stats.paid.toLocaleString()} DZD</p>
             </div>
+            
+            {/* Pending Amount */}
             <div style={{ textAlign: 'center' }}>
               <Clock size={20} color={T.orange} style={{ margin: '0 auto 4px' }} />
               <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Pending</p>
               <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: T.orange }}>{stats.pending.toLocaleString()} DZD</p>
             </div>
           </div>
+          
+          {/* Progress bar for collection rate */}
           <div style={{ marginTop: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: T.textSm, marginBottom: 6 }}>
               <span>Collection Rate</span>
@@ -311,7 +407,10 @@ export default function ResidentPayments() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* ============================================
+          FILTER TABS - All, Pending, Paid
+      ============================================ */}
+      
       <div style={{ padding: '20px 16px' }}>
         <div style={{ display: 'flex', gap: 8, background: T.white, borderRadius: 14, padding: 4, border: `1px solid ${T.border}` }}>
           {[
@@ -350,10 +449,14 @@ export default function ResidentPayments() {
         </div>
       </div>
 
-      {/* Payments List */}
+      {/* ============================================
+          PAYMENTS LIST
+      ============================================ */}
+      
       <div style={{ padding: '0 16px' }}>
         {filteredPayments.length === 0 ? (
-          <div style={{
+          // Empty State - No payments
+          <div className="fade-in" style={{
             background: T.white,
             borderRadius: 20,
             padding: 48,
@@ -365,6 +468,7 @@ export default function ResidentPayments() {
             <p style={{ margin: '4px 0 0', fontSize: 12, color: T.textSm }}>Your payment history will appear here</p>
           </div>
         ) : (
+          // List of payments
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {filteredPayments.map((payment, index) => {
               const status = getStatusBadge(payment.status);
@@ -376,18 +480,19 @@ export default function ResidentPayments() {
               return (
                 <div
                   key={payment.id}
-                  className="fade-in"
+                  className="fade-in card-hover"
                   style={{
                     background: T.white,
                     borderRadius: 18,
                     padding: 16,
                     border: `1px solid ${T.border}`,
                     borderLeft: payment.status === 'pending' ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
-                    transition: 'all 0.15s',
+                    transition: 'transform 0.1s ease',
                     cursor: payment.status === 'pending' ? 'pointer' : 'default'
                   }}
                   onClick={() => !isProcessing && payment.status === 'pending' && setSelectedPayment(payment)}
                 >
+                  {/* Header: Month + Status Badge */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
@@ -401,6 +506,8 @@ export default function ResidentPayments() {
                         {isOverdue && ' (Overdue)'}
                       </p>
                     </div>
+                    
+                    {/* Status Badge */}
                     <div style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -414,17 +521,28 @@ export default function ResidentPayments() {
                     </div>
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+                  {/* Footer: Amount + Action Button */}
+                  <div style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    marginTop: 8, 
+                    paddingTop: 12, 
+                    borderTop: `1px solid ${T.border}`
+                  }}>
                     <div>
                       <p style={{ margin: 0, fontSize: 11, color: T.textSm }}>Amount</p>
                       <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>{payment.amount.toLocaleString()} DZD</p>
                     </div>
+                    
+                    {/* Action Button */}
                     {payment.status === 'pending' && !isProcessing && (
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPayment(payment);
                         }}
+                        className="card-hover"
                         style={{
                           padding: '8px 20px',
                           background: T.orange,
@@ -434,20 +552,22 @@ export default function ResidentPayments() {
                           fontSize: 13,
                           fontWeight: 600,
                           cursor: 'pointer',
-                          transition: 'all 0.15s'
+                          transition: 'transform 0.1s ease'
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = T.orangeDeep}
-                        onMouseLeave={e => e.currentTarget.style.background = T.orange}
                       >
                         Pay Now
                       </button>
                     )}
+                    
+                    {/* Processing Indicator */}
                     {isProcessing && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: T.surface, borderRadius: 12 }}>
                         <div style={{ width: 16, height: 16, borderRadius: '50%', border: `2px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
                         <span style={{ fontSize: 12, color: T.textMd }}>Processing...</span>
                       </div>
                     )}
+                    
+                    {/* Paid Date */}
                     {payment.status === 'paid' && payment.paid_at && (
                       <p style={{ margin: 0, fontSize: 11, color: T.green }}>
                         Paid on {new Date(payment.paid_at).toLocaleDateString()}
@@ -461,13 +581,19 @@ export default function ResidentPayments() {
         )}
       </div>
 
-      {/* Payment Modal */}
+      {/* ============================================
+          PAYMENT CONFIRMATION MODAL
+      ============================================ */}
+      
       {selectedPayment && (
         <>
+          {/* Backdrop overlay */}
           <div 
-            style={{ position: 'fixed', inset: 0, background: 'rgba(15,26,62,0.5)', zIndex: 40 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(15,26,62,0.5)', zIndex: 40, backdropFilter: 'blur(4px)' }}
             onClick={() => setSelectedPayment(null)}
           />
+          
+          {/* Modal content */}
           <div className="slide-up" style={{
             position: 'fixed',
             bottom: 0,
@@ -480,6 +606,7 @@ export default function ResidentPayments() {
             padding: 24,
             boxShadow: '0 -4px 20px rgba(0,0,0,0.1)'
           }}>
+            {/* Modal Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: T.navy }}>Confirm Payment</h3>
@@ -503,6 +630,7 @@ export default function ResidentPayments() {
               </button>
             </div>
 
+            {/* Payment Details */}
             <div style={{
               background: T.surface,
               borderRadius: 20,
@@ -525,6 +653,7 @@ export default function ResidentPayments() {
               </div>
             </div>
 
+            {/* Payment Method */}
             <div style={{ marginBottom: 20 }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 12 }}>Payment Method</p>
               <div style={{
@@ -546,6 +675,7 @@ export default function ResidentPayments() {
               </div>
             </div>
 
+            {/* Security Notice */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -559,9 +689,11 @@ export default function ResidentPayments() {
               <p style={{ margin: 0, fontSize: 11, color: T.teal }}>The syndic will be notified immediately</p>
             </div>
 
+            {/* Action Buttons */}
             <button 
               onClick={() => processPayment(selectedPayment)}
               disabled={processing}
+              className="card-hover"
               style={{
                 width: '100%',
                 padding: '14px',
@@ -572,7 +704,7 @@ export default function ResidentPayments() {
                 fontSize: 15,
                 fontWeight: 600,
                 cursor: processing ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s'
+                transition: 'transform 0.1s ease'
               }}
             >
               {processing ? 'Processing...' : `Confirm Payment - ${selectedPayment.amount.toLocaleString()} DZD`}
