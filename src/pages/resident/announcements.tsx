@@ -4,9 +4,13 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   Megaphone, Pin, Bell, AlertCircle, Star, 
-  Clock, ArrowLeft, Filter, Calendar, Sparkles,
-  ChevronRight, Home
+  Clock, ArrowLeft, Calendar, Sparkles,
+  ChevronRight
 } from 'lucide-react';
+
+// ============================================
+// TYPESCRIPT INTERFACES
+// ============================================
 
 interface Announcement {
   id: string;
@@ -18,19 +22,33 @@ interface Announcement {
   building_id: string;
 }
 
+// ============================================
+// MAIN COMPONENT
+// ============================================
+
 export default function ResidentAnnouncements() {
   const router = useRouter();
-  const [resident, setResident] = useState<any>(null);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [buildingName, setBuildingName] = useState('');
+  
+  // ============================================
+  // STATE MANAGEMENT
+  // ============================================
+  
+  const [resident, setResident] = useState<any>(null);           // Current resident data
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]); // List of announcements
+  const [loading, setLoading] = useState(true);                  // Loading state
+  const [filter, setFilter] = useState('all');                   // Filter: all, pinned, urgent
+  const [buildingName, setBuildingName] = useState('');          // Building name for header
 
-  // Get resident from localStorage directly
+  // ============================================
+  // INITIALIZATION - Load resident data from localStorage
+  // ============================================
+  
   useEffect(() => {
+    // Get saved session data
     const token = localStorage.getItem('resident_token');
     const residentData = localStorage.getItem('resident_data');
     
+    // No valid session → redirect to login
     if (!token || !residentData) {
       router.push('/resident');
       return;
@@ -47,12 +65,22 @@ export default function ResidentAnnouncements() {
     }
   }, []);
 
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+
+  /**
+   * Fetch building name and announcements for the resident's building
+   * 1. Get building_id from resident's apartment number
+   * 2. Get building name from buildings table
+   * 3. Get all announcements for that building
+   */
   const fetchBuildingAndAnnouncements = async (residentData: any) => {
     if (!residentData) return;
     setLoading(true);
     
     try {
-      // Get resident's apartment and building using apartment_number
+      // Step 1: Get building_id from apartment number
       const { data: apartment, error: aptError } = await supabase
         .from('apartments')
         .select('building_id')
@@ -66,7 +94,7 @@ export default function ResidentAnnouncements() {
       }
       
       if (apartment) {
-        // Fetch building name
+        // Step 2: Fetch building name
         const { data: building, error: buildingError } = await supabase
           .from('buildings')
           .select('name')
@@ -77,7 +105,7 @@ export default function ResidentAnnouncements() {
           setBuildingName(building.name);
         }
         
-        // Fetch announcements for this building
+        // Step 3: Fetch announcements for this building
         const { data, error } = await supabase
           .from('announcements')
           .select('*')
@@ -98,12 +126,22 @@ export default function ResidentAnnouncements() {
     }
   };
 
+  // ============================================
+  // UI HELPER FUNCTIONS
+  // ============================================
+
+  /**
+   * Filter announcements based on selected filter
+   */
   const filteredAnnouncements = announcements.filter(ann => {
     if (filter === 'pinned') return ann.is_pinned;
     if (filter === 'urgent') return ann.priority === 'urgent';
     return true;
   });
 
+  /**
+   * Get priority badge styling (color, icon, label)
+   */
   const getPriorityBadge = (priority: string) => {
     switch(priority) {
       case 'urgent': 
@@ -115,60 +153,56 @@ export default function ResidentAnnouncements() {
     }
   };
 
+  // Split announcements into pinned and regular
+  const pinnedAnnouncements = filteredAnnouncements.filter(a => a.is_pinned);
+  const regularAnnouncements = filteredAnnouncements.filter(a => !a.is_pinned);
+
+  // ============================================
+  // LOADING SCREEN (Clean white)
+  // ============================================
+  
   if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
-        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        background: '#FFFFFF',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#fff' }}>Loading announcements...</p>
+          <div style={{ 
+            width: 48, 
+            height: 48, 
+            borderRadius: '50%', 
+            border: `3px solid ${T.orange}`, 
+            borderTopColor: 'transparent', 
+            animation: 'spin 0.75s linear infinite',
+            margin: '0 auto 16px'
+          }} />
+          <p style={{ color: T.textMd, fontSize: 14 }}>Loading announcements...</p>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
-  if (!resident) {
-    return (
-      <div style={{ 
-        minHeight: '100vh', 
-        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <Megaphone size={48} color="rgba(255,255,255,0.3)" />
-          <p style={{ color: 'rgba(255,255,255,0.6)', marginTop: 16 }}>Please login to view announcements</p>
-          <button 
-            onClick={() => router.push('/resident')} 
-            style={{ marginTop: 16, padding: '10px 24px', background: T.orange, border: 'none', borderRadius: 12, color: '#fff', cursor: 'pointer' }}
-          >
-            Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+  if (!resident) return null;
 
-  const pinnedAnnouncements = filteredAnnouncements.filter(a => a.is_pinned);
-  const regularAnnouncements = filteredAnnouncements.filter(a => !a.is_pinned);
-
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+  
   return (
     <div style={{ 
       minHeight: '100vh', 
       background: T.canvasBg,
-      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      fontFamily: "'Outfit', 'Segoe UI', sans-serif",
       paddingBottom: 80
     }}>
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(30px); }
+          from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes slideIn {
@@ -179,21 +213,23 @@ export default function ResidentAnnouncements() {
           to { transform: rotate(360deg); }
         }
         .fade-in-up {
-          animation: fadeInUp 0.5s ease both;
+          animation: fadeInUp 0.4s ease both;
         }
         .slide-in {
           animation: slideIn 0.4s ease both;
         }
         .card-hover {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 0.1s ease;
         }
-        .card-hover:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(5,15,36,0.1);
+        .card-hover:active {
+          transform: scale(0.98);
         }
       `}</style>
 
-      {/* Header */}
+      {/* ============================================
+          HEADER SECTION
+      ============================================ */}
+      
       <div style={{
         background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
         padding: '24px 20px 32px',
@@ -202,11 +238,14 @@ export default function ResidentAnnouncements() {
         position: 'relative',
         overflow: 'hidden'
       }}>
+        {/* Decorative background elements */}
         <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         
         <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Header row with back button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+            {/* Back button */}
             <button 
               onClick={() => router.back()} 
               style={{
@@ -223,6 +262,8 @@ export default function ResidentAnnouncements() {
             >
               <ArrowLeft size={20} color="#fff" />
             </button>
+            
+            {/* Title and building name */}
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <Sparkles size={14} color={T.orange} />
@@ -233,7 +274,7 @@ export default function ResidentAnnouncements() {
             </div>
           </div>
 
-          {/* Stats Summary */}
+          {/* Stats Summary - Quick overview */}
           <div style={{
             background: 'rgba(255,255,255,0.08)',
             backdropFilter: 'blur(10px)',
@@ -256,7 +297,10 @@ export default function ResidentAnnouncements() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* ============================================
+          FILTER TABS - All, Pinned, Urgent
+      ============================================ */}
+      
       <div style={{ padding: '20px 20px 0' }}>
         <div style={{ 
           display: 'flex', 
@@ -278,6 +322,7 @@ export default function ResidentAnnouncements() {
               <button
                 key={tab.id}
                 onClick={() => setFilter(tab.id)}
+                className="card-hover"
                 style={{
                   flex: 1,
                   padding: '10px 16px',
@@ -303,9 +348,13 @@ export default function ResidentAnnouncements() {
         </div>
       </div>
 
-      {/* Announcements List */}
+      {/* ============================================
+          ANNOUNCEMENTS LIST
+      ============================================ */}
+      
       <div style={{ padding: '20px' }}>
         {filteredAnnouncements.length === 0 ? (
+          // Empty State - No announcements
           <div className="fade-in-up" style={{
             background: T.white,
             borderRadius: 24,
@@ -321,7 +370,7 @@ export default function ResidentAnnouncements() {
           </div>
         ) : (
           <>
-            {/* Pinned Announcements Section */}
+            {/* Pinned Announcements Section - Shows first with orange accent */}
             {pinnedAnnouncements.length > 0 && filter === 'all' && (
               <div className="slide-in" style={{ marginBottom: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
@@ -356,7 +405,7 @@ export default function ResidentAnnouncements() {
         )}
       </div>
 
-      {/* Bottom Navigation Hint */}
+      {/* Footer hint */}
       <div style={{ textAlign: 'center', padding: '16px 20px' }}>
         <p style={{ fontSize: 11, color: T.textSm, margin: 0 }}>
           Stay connected with your building community
@@ -366,7 +415,14 @@ export default function ResidentAnnouncements() {
   );
 }
 
-// Announcement Card Component
+// ============================================
+// ANNOUNCEMENT CARD COMPONENT
+// ============================================
+
+/**
+ * Individual announcement card component
+ * Handles expand/collapse for long content
+ */
 function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: Announcement; getPriorityBadge: (priority: string) => any }) {
   const [expanded, setExpanded] = useState(false);
   const priority = getPriorityBadge(announcement.priority);
@@ -382,13 +438,14 @@ function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: An
         border: `1px solid ${T.border}`,
         borderLeft: announcement.is_pinned ? `4px solid ${T.orange}` : `1px solid ${T.border}`,
         overflow: 'hidden',
-        transition: 'all 0.2s'
+        transition: 'transform 0.1s ease'
       }}
     >
-      <div style={{ padding: '16px' }}>
-        {/* Header */}
+      <div style={{ padding: 16 }}>
+        {/* Header: Title + Priority Badge */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
           <div style={{ flex: 1 }}>
+            {/* Pinned indicator */}
             {announcement.is_pinned && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
                 <Pin size={12} color={T.orange} />
@@ -399,6 +456,8 @@ function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: An
               {announcement.title}
             </h3>
           </div>
+          
+          {/* Priority badge */}
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -414,7 +473,7 @@ function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: An
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - Expandable for long text */}
         <p style={{ 
           margin: '0 0 12px', 
           fontSize: 13, 
@@ -425,10 +484,11 @@ function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: An
           {expanded || !isLongContent ? announcement.content : `${announcement.content.substring(0, 150)}...`}
         </p>
 
-        {/* Read More Toggle */}
+        {/* Read More/Less Toggle (only for long content) */}
         {isLongContent && (
           <button
             onClick={() => setExpanded(!expanded)}
+            className="card-hover"
             style={{
               background: 'none',
               border: 'none',
@@ -448,7 +508,7 @@ function AnnouncementCard({ announcement, getPriorityBadge }: { announcement: An
           </button>
         )}
 
-        {/* Footer */}
+        {/* Footer: Date and Time */}
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
