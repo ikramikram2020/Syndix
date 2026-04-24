@@ -19,8 +19,8 @@ interface MaintenanceRequest {
   resident_id?: string;
   resident_name?: string;
   apartment_number?: string;
-  resident_phone?: string;
-  resident_email?: string;
+  resident_phone?: string | null;
+  resident_email?: string | null;
 }
 
 interface RequestNote {
@@ -96,7 +96,7 @@ export default function MaintenanceManagement() {
       const residentIds = [...new Set(requestsData.map(r => r.resident_id).filter(Boolean))];
       
       if (residentIds.length === 0) {
-        const formattedRequests = requestsData.map((req: any) => ({
+        const formattedRequests: MaintenanceRequest[] = requestsData.map((req: any) => ({
           id: req.id,
           title: req.title,
           description: req.description,
@@ -115,10 +115,18 @@ export default function MaintenanceManagement() {
         return;
       }
       
-      // Fetch all residents
+      // Fetch all residents with their apartment info
       const { data: residentsData } = await supabase
         .from('residents')
-        .select('id, full_name, phone, email, apartment_number')
+        .select(`
+          id, 
+          full_name, 
+          phone, 
+          email,
+          apartments (
+            apartment_number
+          )
+        `)
         .in('id', residentIds);
       
       // Create resident map
@@ -126,14 +134,14 @@ export default function MaintenanceManagement() {
       residentsData?.forEach((resident: any) => {
         residentMap.set(resident.id, {
           full_name: resident.full_name,
-          apartment_number: resident.apartment_number || '?',
+          apartment_number: resident.apartments?.apartment_number || '?',
           phone: resident.phone,
           email: resident.email
         });
       });
       
       // Merge data
-      const formattedRequests = requestsData.map((req: any) => {
+      const formattedRequests: MaintenanceRequest[] = requestsData.map((req: any) => {
         const resident = residentMap.get(req.resident_id);
         return {
           id: req.id,
@@ -146,8 +154,8 @@ export default function MaintenanceManagement() {
           resident_id: req.resident_id,
           resident_name: resident?.full_name || 'Unknown',
           apartment_number: resident?.apartment_number || '?',
-          resident_phone: resident?.phone,
-          resident_email: resident?.email
+          resident_phone: resident?.phone || null,
+          resident_email: resident?.email || null
         };
       });
       
@@ -362,6 +370,7 @@ export default function MaintenanceManagement() {
           <div style={{ gridColumn:'span 2', background:T.white, borderRadius:18, padding:'48px 20px', textAlign:'center', border:`1px solid ${T.border}` }}>
             <Wrench size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
             <p style={{ margin:0, fontSize:13, color:T.textSm }}>No maintenance requests yet</p>
+            <p style={{ margin:'8px 0 0', fontSize:11, color:T.textSm }}>Residents will appear here when they submit requests</p>
           </div>
         ) : (
           requests.map((req) => {
@@ -420,7 +429,7 @@ export default function MaintenanceManagement() {
         )}
       </div>
 
-      {/* Request Details Modal - Same as before */}
+      {/* Request Details Modal */}
       {selectedRequest && (
         <>
           <div style={{ position:'fixed', inset:0, background:'rgba(5,15,36,0.5)', zIndex:90, backdropFilter:'blur(4px)' }} onClick={() => setSelectedRequest(null)} />
@@ -480,6 +489,24 @@ export default function MaintenanceManagement() {
               </div>
             </div>
 
+            {/* Priority & Status */}
+            <div style={{ display:'flex', gap:12, marginBottom:20 }}>
+              <div style={{ flex:1, background:T.surface, borderRadius:12, padding:12, textAlign:'center' }}>
+                <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Priority</p>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  {getPriorityIcon(selectedRequest.priority)}
+                  <span style={{ fontSize:13, fontWeight:600, color:T.navy, textTransform:'capitalize' }}>{selectedRequest.priority}</span>
+                </div>
+              </div>
+              <div style={{ flex:1, background:T.surface, borderRadius:12, padding:12, textAlign:'center' }}>
+                <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Status</p>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+                  {getStatusBadge(selectedRequest.status).icon({ size:14, color: getStatusBadge(selectedRequest.status).text })}
+                  <span style={{ fontSize:13, fontWeight:600, color:getStatusBadge(selectedRequest.status).text }}>{getStatusBadge(selectedRequest.status).label}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Status Update Buttons */}
             <div style={{ display:'flex', gap:10, marginBottom:20 }}>
               {selectedRequest.status === 'pending' && (
@@ -533,8 +560,40 @@ export default function MaintenanceManagement() {
             <div>
               <label style={{ display:'block', fontSize:13, fontWeight:600, color:T.textMd, marginBottom:8 }}>Send message to resident</label>
               <div style={{ display:'flex', gap:10 }}>
-                <textarea rows={3} value={newMessage} onChange={(e) => setNewMessage(e.target.value)} placeholder="Type your message here..." style={{ flex:1, padding:'12px', border:`1px solid ${T.border}`, borderRadius:12, fontSize:13, fontFamily:'inherit', outline:'none', resize:'vertical' }} />
-                <button onClick={sendMessage} disabled={!newMessage.trim() || sending} style={{ width:48, height:48, borderRadius:12, background: newMessage.trim() ? T.orange : T.textSm, border:'none', cursor: newMessage.trim() ? 'pointer' : 'not-allowed', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <textarea 
+                  rows={3} 
+                  value={newMessage} 
+                  onChange={(e) => setNewMessage(e.target.value)} 
+                  placeholder="Type your message here... The resident will be able to reply." 
+                  style={{ 
+                    flex:1, 
+                    padding:'12px', 
+                    border:`1px solid ${T.border}`, 
+                    borderRadius:12, 
+                    fontSize:13, 
+                    fontFamily:'inherit', 
+                    outline:'none', 
+                    resize:'vertical' 
+                  }} 
+                  onFocus={e => e.currentTarget.style.borderColor = T.teal} 
+                  onBlur={e => e.currentTarget.style.borderColor = T.border} 
+                />
+                <button 
+                  onClick={sendMessage} 
+                  disabled={!newMessage.trim() || sending} 
+                  style={{ 
+                    width:48, 
+                    height:48, 
+                    borderRadius:12, 
+                    background: newMessage.trim() ? T.orange : T.textSm, 
+                    border:'none', 
+                    cursor: newMessage.trim() ? 'pointer' : 'not-allowed', 
+                    display:'flex', 
+                    alignItems:'center', 
+                    justifyContent:'center',
+                    transition:'all 0.2s'
+                  }}
+                >
                   <Send size={18} color="#fff" />
                 </button>
               </div>
