@@ -50,16 +50,20 @@ export default function MaintenanceManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
+      console.log('No user logged in');
       router.push('/login');
       setLoading(false);
       return;
     }
     
+    console.log('Logged in syndic ID:', user.id);
+    
+    // Use maybeSingle() instead of single() to avoid 0-row error
     const { data: buildingData, error: buildingError } = await supabase
       .from('buildings')
       .select('*')
       .eq('syndic_id', user.id)
-      .single();
+      .maybeSingle();
     
     if (buildingError) {
       console.error('Error fetching building:', buildingError);
@@ -67,69 +71,83 @@ export default function MaintenanceManagement() {
       return;
     }
     
-    if (buildingData) {
-      setBuilding(buildingData);
-      await fetchRequests(buildingData.id);
+    if (!buildingData) {
+      console.log('No building found for syndic:', user.id);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    
+    console.log('Building found:', buildingData.name);
+    setBuilding(buildingData);
+    await fetchRequests(buildingData.id);
   };
 
- const fetchRequests = async (buildingId: string) => {
-  try {
-    // Simplified query - direct join
-    const { data: requestsData, error: requestsError } = await supabase
-      .from('maintenance_requests')
-      .select(`
-        *,
-        residents:resident_id (
-          id,
-          full_name,
-          phone,
-          email,
-          apartment_number
-        )
-      `)
-      .eq('building_id', buildingId)
-      .order('created_at', { ascending: false });
-
-    if (requestsError) {
-      console.error('Error fetching requests:', requestsError);
+  const fetchRequests = async (buildingId: string) => {
+    try {
+      console.log('Fetching requests for building:', buildingId);
+      
+      // Get all maintenance requests for this building
+      const { data: requestsData, error: requestsError } = await supabase
+        .from('maintenance_requests')
+        .select('*')
+        .eq('building_id', buildingId)
+        .order('created_at', { ascending: false });
+      
+      if (requestsError) {
+        console.error('Error fetching requests:', requestsError);
+        setRequests([]);
+        return;
+      }
+      
+      console.log('Raw requests found:', requestsData?.length || 0);
+      
+      if (!requestsData || requestsData.length === 0) {
+        setRequests([]);
+        return;
+      }
+      
+      // For each request, get resident details
+      const formattedRequests = await Promise.all(requestsData.map(async (req: any) => {
+        // Get resident details
+        const { data: residentData } = await supabase
+          .from('residents')
+          .select('full_name, phone, email, apartment_number')
+          .eq('id', req.resident_id)
+          .maybeSingle();
+        
+        return {
+          id: req.id,
+          title: req.title,
+          description: req.description,
+          priority: req.priority,
+          status: req.status,
+          created_at: req.created_at,
+          completed_at: req.completed_at,
+          resident_id: req.resident_id,  // IMPORTANT: Keep this for notifications
+          resident_name: residentData?.full_name || 'Unknown Resident',
+          apartment_number: residentData?.apartment_number || '?',
+          resident_phone: residentData?.phone,
+          resident_email: residentData?.email
+        };
+      }));
+      
+      console.log('Formatted requests:', formattedRequests.length);
+      setRequests(formattedRequests);
+      
+    } catch (err) {
+      console.error('Error:', err);
       setRequests([]);
-      return;
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
+  };
 
-    if (!requestsData || requestsData.length === 0) {
-      setRequests([]);
-      return;
-    }
-
-    // Format the data
-    const formattedRequests = requestsData.map((req: any) => ({
-      id: req.id,
-      title: req.title,
-      description: req.description,
-      priority: req.priority,
-      status: req.status,
-      created_at: req.created_at,
-      completed_at: req.completed_at,
-      resident_name: req.residents?.full_name || 'Unknown Resident',
-      apartment_number: req.residents?.apartment_number || '?',
-      resident_phone: req.residents?.phone,
-      resident_email: req.residents?.email
-    }));
-
-    setRequests(formattedRequests);
-  } catch (err) {
-    console.error('Error:', err);
-    setRequests([]);
-  }
-};
   const refreshData = async () => {
     setRefreshing(true);
     if (building) {
       await fetchRequests(building.id);
     }
-    setRefreshing(false);
   };
 
   const fetchNotes = async (requestId: string) => {
@@ -167,33 +185,7 @@ export default function MaintenanceManagement() {
         setSelectedRequest({ ...selectedRequest, status });
       }
       alert(`✅ Request marked as ${status}!`);
-      
-      // Send notification to resident
-      await sendStatusNotification(requestId, status);
     }
-  };
-
-  const sendStatusNotification = async (requestId: string, status: string) => {
-    const request = requests.find(r => r.id === requestId);
-    if (!request?.resident_id) return;
-    
-    const statusMessages = {
-      pending: 'Your request has been received',
-      in_progress: 'Your maintenance request is now in progress',
-      completed: 'Your maintenance request has been completed'
-    };
-    
-    await supabase
-      .from('notifications')
-      .insert([{
-        user_id: request.resident_id,
-        title: 'Maintenance Request Update',
-        message: `${statusMessages[status as keyof typeof statusMessages]}: ${request.title}`,
-        type: 'maintenance',
-        read: false,
-        created_at: new Date().toISOString(),
-        data: JSON.stringify({ request_id: requestId, status })
-      }]);
   };
 
   const sendMessage = async () => {
@@ -205,7 +197,8 @@ export default function MaintenanceManagement() {
       .insert([{
         request_id: selectedRequest.id,
         message: newMessage,
-        sender_type: 'syndic'
+        sender_type: 'syndic',
+        created_at: new Date().toISOString()
       }]);
 
     if (error) {
@@ -242,9 +235,12 @@ export default function MaintenanceManagement() {
 
   const getStatusBadge = (status: string) => {
     switch(status) {
-      case 'completed': return { bg: '#D1FAE5', text: '#059669', label: 'Completed', icon: CheckCircle };
-      case 'in_progress': return { bg: '#DBEAFE', text: '#2563EB', label: 'In Progress', icon: Zap };
-      default: return { bg: '#FEF3C7', text: '#D97706', label: 'Pending', icon: Clock };
+      case 'completed': 
+        return { bg: '#D1FAE5', text: '#059669', label: 'Completed', icon: CheckCircle };
+      case 'in_progress': 
+        return { bg: '#DBEAFE', text: '#2563EB', label: 'In Progress', icon: Zap };
+      default: 
+        return { bg: '#FEF3C7', text: '#D97706', label: 'Pending', icon: Clock };
     }
   };
 
@@ -376,9 +372,7 @@ export default function MaintenanceManagement() {
                 background:T.white, borderRadius:18, border:`1px solid ${T.border}`,
                 overflow:'hidden', cursor:'pointer', transition:'all 0.22s'
               }}
-              onClick={() => openRequestDetails(req)}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 12px 24px rgba(27,43,107,0.12)'; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
+              onClick={() => openRequestDetails(req)}>
                 <div style={{ padding:20 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
