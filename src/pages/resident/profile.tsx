@@ -5,30 +5,43 @@ import { T } from '../../styles/theme';
 import { 
   User, Mail, Phone, Home, Building2, 
   Calendar, Shield, Edit, ArrowLeft, 
-  CheckCircle, AlertCircle, Save, X, LogOut,
-  Sparkles, Clock, Key, Award
+  CheckCircle, X, LogOut,
+  Sparkles
 } from 'lucide-react';
+
+// ============================================
+// MAIN COMPONENT
+// ============================================
 
 export default function ResidentProfile() {
   const router = useRouter();
-  const [resident, setResident] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
-  const [formData, setFormData] = useState({
+  
+  // ============================================
+  // STATE MANAGEMENT
+  // ============================================
+  
+  const [resident, setResident] = useState<any>(null);           // Current resident data
+  const [loading, setLoading] = useState(true);                  // Loading state
+  const [editing, setEditing] = useState(false);                 // Edit mode toggle
+  const [formData, setFormData] = useState({                     // Editable form data
     phone: '',
     email: ''
   });
-  const [saving, setSaving] = useState(false);
-  const [memberSince, setMemberSince] = useState('');
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [buildingName, setBuildingName] = useState('');
-  const [apartmentNumber, setApartmentNumber] = useState('');
+  const [saving, setSaving] = useState(false);                   // Save button state
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Logout modal
+  const [buildingName, setBuildingName] = useState('');          // Building name from DB
+  const [apartmentNumber, setApartmentNumber] = useState('');    // Apartment number
 
-  // Get resident from localStorage directly
+  // ============================================
+  // INITIALIZATION - Load resident data from localStorage
+  // ============================================
+  
   useEffect(() => {
+    // Get saved session data
     const token = localStorage.getItem('resident_token');
     const residentData = localStorage.getItem('resident_data');
     
+    // No valid session → redirect to login
     if (!token || !residentData) {
       router.push('/resident');
       return;
@@ -37,23 +50,18 @@ export default function ResidentProfile() {
     try {
       const resident = JSON.parse(residentData);
       setResident(resident);
+      
+      // Initialize form with existing data
       setFormData({
         phone: resident.phone || '',
         email: resident.email || ''
       });
+      
       setApartmentNumber(resident.apartment_number || '?');
       
-      // Fetch building name
+      // Fetch building name from database
       if (resident.apartment_number) {
         fetchBuildingInfo(resident.apartment_number);
-      }
-      
-      // Set member since
-      if (resident.created_at) {
-        const date = new Date(resident.created_at);
-        setMemberSince(date.toLocaleDateString('en', { month: 'long', year: 'numeric' }));
-      } else {
-        setMemberSince('2024');
       }
       
       setLoading(false);
@@ -64,9 +72,17 @@ export default function ResidentProfile() {
     }
   }, []);
 
+  // ============================================
+  // DATA FETCHING
+  // ============================================
+  
+  /**
+   * Fetch building name using apartment number
+   * Used for displaying in the profile
+   */
   const fetchBuildingInfo = async (aptNumber: string) => {
     try {
-      // Get building_id from apartment
+      // First get building_id from apartment
       const { data: apartment } = await supabase
         .from('apartments')
         .select('building_id')
@@ -74,6 +90,7 @@ export default function ResidentProfile() {
         .maybeSingle();
       
       if (apartment?.building_id) {
+        // Then get building name
         const { data: building } = await supabase
           .from('buildings')
           .select('name')
@@ -89,6 +106,14 @@ export default function ResidentProfile() {
     }
   };
 
+  // ============================================
+  // PROFILE ACTIONS
+  // ============================================
+  
+  /**
+   * Save profile changes (phone and email only)
+   * Updates both database and localStorage
+   */
   const saveChanges = async () => {
     if (!resident) return;
     setSaving(true);
@@ -104,8 +129,12 @@ export default function ResidentProfile() {
     if (error) {
       alert('Error updating profile: ' + error.message);
     } else {
-      // Update local storage
-      const updatedResident = { ...resident, phone: formData.phone, email: formData.email };
+      // Update local storage for persistence
+      const updatedResident = { 
+        ...resident, 
+        phone: formData.phone, 
+        email: formData.email 
+      };
       localStorage.setItem('resident_data', JSON.stringify(updatedResident));
       setResident(updatedResident);
       setEditing(false);
@@ -114,24 +143,39 @@ export default function ResidentProfile() {
     setSaving(false);
   };
 
+  /**
+   * Logout - Clear all local storage and redirect to login
+   */
   const handleLogout = () => {
     setShowLogoutConfirm(false);
     localStorage.clear();
     router.push('/resident');
   };
 
+  // ============================================
+  // LOADING SCREEN (Clean white)
+  // ============================================
+  
   if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
-        background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
+        background: '#FFFFFF',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center' 
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: '#fff' }}>Loading profile...</p>
+          <div style={{ 
+            width: 48, 
+            height: 48, 
+            borderRadius: '50%', 
+            border: `3px solid ${T.orange}`, 
+            borderTopColor: 'transparent', 
+            animation: 'spin 0.75s linear infinite',
+            margin: '0 auto 16px'
+          }} />
+          <p style={{ color: T.textMd, fontSize: 14 }}>Loading profile...</p>
         </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
@@ -140,16 +184,20 @@ export default function ResidentProfile() {
 
   if (!resident) return null;
 
+  // ============================================
+  // MAIN RENDER
+  // ============================================
+  
   return (
     <div style={{ 
       minHeight: '100vh', 
       background: T.canvasBg,
-      fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
+      fontFamily: "'Outfit', 'Segoe UI', sans-serif",
       paddingBottom: 40
     }}>
       <style>{`
         @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(30px); }
+          from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
         @keyframes slideIn {
@@ -164,7 +212,7 @@ export default function ResidentProfile() {
           to { transform: rotate(360deg); }
         }
         .fade-in-up {
-          animation: fadeInUp 0.5s ease both;
+          animation: fadeInUp 0.4s ease both;
         }
         .slide-in {
           animation: slideIn 0.4s ease both;
@@ -173,15 +221,17 @@ export default function ResidentProfile() {
           animation: pulse 2s ease-in-out infinite;
         }
         .card-hover {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 0.1s ease;
         }
-        .card-hover:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 25px rgba(5,15,36,0.1);
+        .card-hover:active {
+          transform: scale(0.98);
         }
       `}</style>
 
-      {/* Header */}
+      {/* ============================================
+          HEADER SECTION
+      ============================================ */}
+      
       <div style={{
         background: `linear-gradient(135deg, #0A1A3E, #0D2B5E)`,
         padding: '24px 20px 40px',
@@ -190,12 +240,15 @@ export default function ResidentProfile() {
         position: 'relative',
         overflow: 'hidden'
       }}>
+        {/* Decorative background circle */}
         <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         
         <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Header row with back button and edit button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              {/* Back button */}
               <button 
                 onClick={() => router.back()} 
                 style={{
@@ -212,6 +265,8 @@ export default function ResidentProfile() {
               >
                 <ArrowLeft size={20} color="#fff" />
               </button>
+              
+              {/* Title */}
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Sparkles size={14} color={T.orange} />
@@ -220,9 +275,12 @@ export default function ResidentProfile() {
                 <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>My Profile</h1>
               </div>
             </div>
+            
+            {/* Edit button (only visible when not editing) */}
             {!editing && (
               <button
                 onClick={() => setEditing(true)}
+                className="card-hover"
                 style={{
                   width: 44,
                   height: 44,
@@ -270,7 +328,10 @@ export default function ResidentProfile() {
         </div>
       </div>
 
-      {/* Profile Info Card */}
+      {/* ============================================
+          PROFILE INFO CARD
+      ============================================ */}
+      
       <div className="fade-in-up" style={{ padding: '20px' }}>
         <div style={{
           background: T.white,
@@ -280,9 +341,10 @@ export default function ResidentProfile() {
           border: `1px solid ${T.border}`
         }}>
           
-          {/* Info Items */}
+          {/* Info Items List */}
           <div style={{ padding: '20px' }}>
-            {/* Apartment */}
+            
+            {/* Apartment Number (Non-editable) */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -301,7 +363,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Building */}
+            {/* Building Name (Non-editable) */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -320,7 +382,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Email */}
+            {/* Email (Editable) */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -359,7 +421,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Phone */}
+            {/* Phone Number (Editable) */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -397,26 +459,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Member Since */}
-            <div className="card-hover" style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 14,
-              padding: '14px 0',
-              borderBottom: `1px solid ${T.border}`
-            }}>
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: T.surface, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Calendar size={20} color={T.textMd} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>MEMBER SINCE</p>
-                <p style={{ margin: '4px 0 0', fontSize: 14, fontWeight: 500, color: T.navy }}>
-                  {memberSince}
-                </p>
-              </div>
-            </div>
-
-            {/* Account Status */}
+            {/* Account Status (Non-editable) */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -435,7 +478,10 @@ export default function ResidentProfile() {
             </div>
           </div>
 
-          {/* Edit Mode Buttons */}
+          {/* ============================================
+              EDIT MODE BUTTONS (Save / Cancel)
+          ============================================ */}
+          
           {editing && (
             <div style={{ 
               padding: '16px 20px 20px', 
@@ -445,7 +491,15 @@ export default function ResidentProfile() {
               gap: 12
             }}>
               <button
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setEditing(false);
+                  // Reset form to original values
+                  setFormData({
+                    phone: resident.phone || '',
+                    email: resident.email || ''
+                  });
+                }}
+                className="card-hover"
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -455,8 +509,7 @@ export default function ResidentProfile() {
                   color: T.textMd,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
+                  cursor: 'pointer'
                 }}
               >
                 Cancel
@@ -464,6 +517,7 @@ export default function ResidentProfile() {
               <button
                 onClick={saveChanges}
                 disabled={saving}
+                className="card-hover"
                 style={{
                   flex: 1,
                   padding: '12px',
@@ -474,8 +528,7 @@ export default function ResidentProfile() {
                   fontSize: 14,
                   fontWeight: 600,
                   cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.7 : 1,
-                  transition: 'all 0.15s'
+                  opacity: saving ? 0.7 : 1
                 }}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
@@ -483,7 +536,10 @@ export default function ResidentProfile() {
             </div>
           )}
 
-          {/* Logout Button */}
+          {/* ============================================
+              LOGOUT BUTTON (Only when not editing)
+          ============================================ */}
+          
           {!editing && (
             <div style={{ 
               padding: '16px 20px 20px', 
@@ -492,6 +548,7 @@ export default function ResidentProfile() {
             }}>
               <button
                 onClick={() => setShowLogoutConfirm(true)}
+                className="card-hover"
                 style={{
                   width: '100%',
                   padding: '14px',
@@ -505,8 +562,7 @@ export default function ResidentProfile() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 8,
-                  transition: 'all 0.15s'
+                  gap: 8
                 }}
               >
                 <LogOut size={18} />
@@ -517,9 +573,13 @@ export default function ResidentProfile() {
         </div>
       </div>
 
-      {/* Logout Confirmation Modal */}
+      {/* ============================================
+          LOGOUT CONFIRMATION MODAL
+      ============================================ */}
+      
       {showLogoutConfirm && (
         <>
+          {/* Backdrop */}
           <div 
             style={{
               position: 'fixed',
@@ -530,6 +590,8 @@ export default function ResidentProfile() {
             }}
             onClick={() => setShowLogoutConfirm(false)}
           />
+          
+          {/* Modal */}
           <div className="fade-in-up" style={{
             position: 'fixed',
             bottom: 0,
@@ -559,9 +621,11 @@ export default function ResidentProfile() {
                 Are you sure you want to sign out of your account?
               </p>
             </div>
+            
             <div style={{ display: 'flex', gap: 12 }}>
               <button
                 onClick={() => setShowLogoutConfirm(false)}
+                className="card-hover"
                 style={{
                   flex: 1,
                   padding: '14px',
@@ -578,6 +642,7 @@ export default function ResidentProfile() {
               </button>
               <button
                 onClick={handleLogout}
+                className="card-hover"
                 style={{
                   flex: 1,
                   padding: '14px',
