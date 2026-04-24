@@ -4,9 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   User, Mail, Phone, Home, Building2, 
-  Calendar, Shield, Edit, ArrowLeft, 
-  CheckCircle, X, LogOut,
-  Sparkles
+  Shield, ArrowLeft, LogOut,
+  Sparkles, CheckCircle
 } from 'lucide-react';
 
 // ============================================
@@ -22,12 +21,6 @@ export default function ResidentProfile() {
   
   const [resident, setResident] = useState<any>(null);           // Current resident data
   const [loading, setLoading] = useState(true);                  // Loading state
-  const [editing, setEditing] = useState(false);                 // Edit mode toggle
-  const [formData, setFormData] = useState({                     // Editable form data
-    phone: '',
-    email: ''
-  });
-  const [saving, setSaving] = useState(false);                   // Save button state
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false); // Logout modal
   const [buildingName, setBuildingName] = useState('');          // Building name from DB
   const [apartmentNumber, setApartmentNumber] = useState('');    // Apartment number
@@ -50,13 +43,6 @@ export default function ResidentProfile() {
     try {
       const resident = JSON.parse(residentData);
       setResident(resident);
-      
-      // Initialize form with existing data
-      setFormData({
-        phone: resident.phone || '',
-        email: resident.email || ''
-      });
-      
       setApartmentNumber(resident.apartment_number || '?');
       
       // Fetch building name from database
@@ -104,43 +90,6 @@ export default function ResidentProfile() {
     } catch (err) {
       console.error('Error fetching building:', err);
     }
-  };
-
-  // ============================================
-  // PROFILE ACTIONS
-  // ============================================
-  
-  /**
-   * Save profile changes (phone and email only)
-   * Updates both database and localStorage
-   */
-  const saveChanges = async () => {
-    if (!resident) return;
-    setSaving(true);
-    
-    const { error } = await supabase
-      .from('residents')
-      .update({
-        phone: formData.phone,
-        email: formData.email
-      })
-      .eq('id', resident.id);
-
-    if (error) {
-      alert('Error updating profile: ' + error.message);
-    } else {
-      // Update local storage for persistence
-      const updatedResident = { 
-        ...resident, 
-        phone: formData.phone, 
-        email: formData.email 
-      };
-      localStorage.setItem('resident_data', JSON.stringify(updatedResident));
-      setResident(updatedResident);
-      setEditing(false);
-      alert('Profile updated successfully!');
-    }
-    setSaving(false);
   };
 
   /**
@@ -229,7 +178,7 @@ export default function ResidentProfile() {
       `}</style>
 
       {/* ============================================
-          HEADER SECTION
+          HEADER SECTION - Dark blue gradient
       ============================================ */}
       
       <div style={{
@@ -240,12 +189,12 @@ export default function ResidentProfile() {
         position: 'relative',
         overflow: 'hidden'
       }}>
-        {/* Decorative background circle */}
+        {/* Decorative background circles */}
         <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         <div style={{ position: 'absolute', bottom: -30, left: -30, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
         
         <div style={{ position: 'relative', zIndex: 2 }}>
-          {/* Header row with back button and edit button */}
+          {/* Header row with back button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               {/* Back button */}
@@ -270,33 +219,11 @@ export default function ResidentProfile() {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <Sparkles size={14} color={T.orange} />
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>PERSONAL INFO</span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: 1 }}>PROFILE</span>
                 </div>
                 <h1 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>My Profile</h1>
               </div>
             </div>
-            
-            {/* Edit button (only visible when not editing) */}
-            {!editing && (
-              <button
-                onClick={() => setEditing(true)}
-                className="card-hover"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 22,
-                  background: T.orange,
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(245,166,35,0.3)'
-                }}
-              >
-                <Edit size={18} color="#fff" />
-              </button>
-            )}
           </div>
 
           {/* Avatar Section */}
@@ -329,7 +256,7 @@ export default function ResidentProfile() {
       </div>
 
       {/* ============================================
-          PROFILE INFO CARD
+          PROFILE INFO CARD - Read-only
       ============================================ */}
       
       <div className="fade-in-up" style={{ padding: '20px' }}>
@@ -341,10 +268,10 @@ export default function ResidentProfile() {
           border: `1px solid ${T.border}`
         }}>
           
-          {/* Info Items List */}
+          {/* Info Items List - All read-only */}
           <div style={{ padding: '20px' }}>
             
-            {/* Apartment Number (Non-editable) */}
+            {/* Apartment Number */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -363,7 +290,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Building Name (Non-editable) */}
+            {/* Building Name */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -382,7 +309,7 @@ export default function ResidentProfile() {
               </div>
             </div>
 
-            {/* Email (Editable) */}
+            {/* Email - Read only */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -395,33 +322,13 @@ export default function ResidentProfile() {
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>EMAIL</p>
-                {editing ? (
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 10,
-                      fontSize: 14,
-                      marginTop: 4,
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                    onBlur={e => e.currentTarget.style.borderColor = T.border}
-                    autoFocus
-                  />
-                ) : (
-                  <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
-                    {resident.email || 'Not provided'}
-                  </p>
-                )}
+                <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
+                  {resident.email || 'Not provided'}
+                </p>
               </div>
             </div>
 
-            {/* Phone Number (Editable) */}
+            {/* Phone Number - Read only */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -434,32 +341,13 @@ export default function ResidentProfile() {
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 11, color: T.textSm, letterSpacing: 0.5 }}>PHONE</p>
-                {editing ? (
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 10,
-                      fontSize: 14,
-                      marginTop: 4,
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                    onBlur={e => e.currentTarget.style.borderColor = T.border}
-                  />
-                ) : (
-                  <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
-                    {resident.phone || 'Not provided'}
-                  </p>
-                )}
+                <p style={{ margin: '4px 0 0', fontSize: 14, color: T.text }}>
+                  {resident.phone || 'Not provided'}
+                </p>
               </div>
             </div>
 
-            {/* Account Status (Non-editable) */}
+            {/* Account Status */}
             <div className="card-hover" style={{
               display: 'flex',
               alignItems: 'center',
@@ -479,97 +367,37 @@ export default function ResidentProfile() {
           </div>
 
           {/* ============================================
-              EDIT MODE BUTTONS (Save / Cancel)
+              LOGOUT BUTTON
           ============================================ */}
           
-          {editing && (
-            <div style={{ 
-              padding: '16px 20px 20px', 
-              borderTop: `1px solid ${T.border}`,
-              background: T.surface,
-              display: 'flex',
-              gap: 12
-            }}>
-              <button
-                onClick={() => {
-                  setEditing(false);
-                  // Reset form to original values
-                  setFormData({
-                    phone: resident.phone || '',
-                    email: resident.email || ''
-                  });
-                }}
-                className="card-hover"
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: 'transparent',
-                  border: `1px solid ${T.border}`,
-                  borderRadius: 14,
-                  color: T.textMd,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={saveChanges}
-                disabled={saving}
-                className="card-hover"
-                style={{
-                  flex: 1,
-                  padding: '12px',
-                  background: T.navy,
-                  border: 'none',
-                  borderRadius: 14,
-                  color: '#fff',
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: saving ? 'not-allowed' : 'pointer',
-                  opacity: saving ? 0.7 : 1
-                }}
-              >
-                {saving ? 'Saving...' : 'Save Changes'}
-              </button>
-            </div>
-          )}
-
-          {/* ============================================
-              LOGOUT BUTTON (Only when not editing)
-          ============================================ */}
-          
-          {!editing && (
-            <div style={{ 
-              padding: '16px 20px 20px', 
-              borderTop: `1px solid ${T.border}`,
-              background: T.surface
-            }}>
-              <button
-                onClick={() => setShowLogoutConfirm(true)}
-                className="card-hover"
-                style={{
-                  width: '100%',
-                  padding: '14px',
-                  background: T.redLight,
-                  border: 'none',
-                  borderRadius: 14,
-                  color: T.red,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8
-                }}
-              >
-                <LogOut size={18} />
-                Sign Out
-              </button>
-            </div>
-          )}
+          <div style={{ 
+            padding: '16px 20px 20px', 
+            borderTop: `1px solid ${T.border}`,
+            background: T.surface
+          }}>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className="card-hover"
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: T.redLight,
+                border: 'none',
+                borderRadius: 14,
+                color: T.red,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8
+              }}
+            >
+              <LogOut size={18} />
+              Sign Out
+            </button>
+          </div>
         </div>
       </div>
 
