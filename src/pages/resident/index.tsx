@@ -25,46 +25,38 @@ export default function ResidentLogin() {
   // STATE MANAGEMENT
   // ============================================
   
-  const [loading, setLoading] = useState(true);      // Controls loading spinner
-  const [error, setError] = useState('');             // Stores error message if any
-  const [residentName, setResidentName] = useState('');     // Resident's full name
-  const [apartmentNumber, setApartmentNumber] = useState(''); // Apartment number
-  const [buildingName, setBuildingName] = useState('');       // Building name
-  const [showWelcome, setShowWelcome] = useState(false);      // Controls welcome screen visibility
-  const [token, setToken] = useState<string | null>(null);    // Stores the access token
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [residentName, setResidentName] = useState('');
+  const [apartmentNumber, setApartmentNumber] = useState('');
+  const [buildingName, setBuildingName] = useState('');
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
 
   // ============================================
   // INITIALIZATION - Check for existing session or new token
   // ============================================
   
   useEffect(() => {
-    // Check if app is running as installed PWA
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-    
-    // Get saved data from localStorage (if user already logged in)
     const savedToken = localStorage.getItem('resident_token');
     const savedResident = localStorage.getItem('resident_data');
     
-    // If user already installed the PWA and has valid session → go straight to dashboard
     if (isStandalone && savedToken && savedResident) {
       router.replace('/resident/dashboard');
       return;
     }
     
-    // Process token from URL (when user clicks email link or scans QR)
     if (router.isReady) {
       const { token: tokenFromUrl } = router.query;
       
       if (tokenFromUrl && typeof tokenFromUrl === 'string') {
-        // New user with token in URL
         setToken(tokenFromUrl);
         verifyToken(tokenFromUrl);
       } else if (!savedToken) {
-        // No token found → show error
         setError('No access token found. Please scan the QR code.');
         setLoading(false);
       } else {
-        // Returning user with saved token
         verifyToken(savedToken);
       }
     }
@@ -74,11 +66,6 @@ export default function ResidentLogin() {
   // API CALLS - Token verification
   // ============================================
   
-  /**
-   * Verifies the token with the backend API
-   * On success: saves resident data to localStorage and shows welcome screen
-   * On failure: shows error message
-   */
   const verifyToken = async (accessToken: string) => {
     try {
       const response = await fetch('/api/resident/verify-qr', {
@@ -89,21 +76,18 @@ export default function ResidentLogin() {
 
       const data = await response.json();
 
-      // Handle invalid token
       if (!response.ok || !data.success) {
         setError(data.error || 'Invalid QR code. Please contact your syndic.');
         setLoading(false);
         return;
       }
 
-      // Save resident data to localStorage for persistent login
       localStorage.setItem('resident_token', data.token);
       localStorage.setItem('resident_data', JSON.stringify(data.resident));
       localStorage.setItem('resident_name', data.resident.full_name);
       localStorage.setItem('resident_apartment', data.resident.apartment_number || '?');
       localStorage.setItem('resident_building', data.resident.building_name || 'Your Building');
 
-      // Update UI state
       setResidentName(data.resident.full_name);
       setApartmentNumber(data.resident.apartment_number || '?');
       setBuildingName(data.resident.building_name || 'Your Building');
@@ -117,19 +101,12 @@ export default function ResidentLogin() {
     }
   };
 
-  // ============================================
-  // HANDLERS
-  // ============================================
-  
-  /**
-   * Navigates user to the main dashboard
-   */
   const handleContinue = () => {
     router.push('/resident/dashboard');
   };
 
   // ============================================
-  // LOADING SCREEN 
+  // LOADING SCREEN
   // ============================================
   
   if (loading) {
@@ -140,13 +117,12 @@ export default function ResidentLogin() {
         </Head>
         <div style={{ 
           minHeight: '100vh', 
-          background: '#FFFFFF',  // Clean white background
+          background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
           <div style={{ textAlign: 'center' }}>
-            {/* Spinner */}
             <div style={{
               width: 48,
               height: 48,
@@ -156,9 +132,8 @@ export default function ResidentLogin() {
               animation: 'spin 0.75s linear infinite',
               margin: '0 auto 16px'
             }} />
-            {/* Loading text */}
-            <p style={{ color: T.textMd, fontSize: 14, marginTop: 8 }}>Verifying your access...</p>
-            <p style={{ color: T.textSm, fontSize: 12, marginTop: 4 }}>Please wait a moment</p>
+            <p style={{ color: '#fff', fontSize: 14, marginTop: 8 }}>Verifying your access...</p>
+            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 4 }}>Please wait a moment</p>
           </div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
@@ -178,7 +153,7 @@ export default function ResidentLogin() {
         </Head>
         <div style={{ 
           minHeight: '100vh', 
-          background: T.canvasBg,
+          background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -193,7 +168,6 @@ export default function ResidentLogin() {
             textAlign: 'center',
             border: `1px solid ${T.border}`
           }}>
-            {/* Error Icon */}
             <div style={{
               width: 70,
               height: 70,
@@ -236,7 +210,7 @@ export default function ResidentLogin() {
   }
 
   // ============================================
-  // WELCOME SCREEN - Shown after successful verification
+  // WELCOME SCREEN
   // ============================================
   
   return (
@@ -248,13 +222,21 @@ export default function ResidentLogin() {
       
       <div style={{ 
         minHeight: '100vh', 
-        background: T.canvasBg,
+        background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
         fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '20px'
+        padding: '20px',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        {/* Decorative background elements */}
+        <div style={{ position: 'absolute', top: -100, right: -100, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', bottom: -100, left: -100, width: 250, height: 250, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+        <div style={{ position: 'absolute', top: '30%', left: '10%', width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.02)' }} />
+        <div style={{ position: 'absolute', bottom: '20%', right: '15%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.02)' }} />
+        
         <style>{`
           @keyframes slideUp {
             from { opacity: 0; transform: translateY(30px); }
@@ -264,9 +246,8 @@ export default function ResidentLogin() {
             from { opacity: 0; transform: scale(0.95); }
             to { opacity: 1; transform: scale(1); }
           }
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+          @keyframes spin {
+            to { transform: rotate(360deg); }
           }
           .slide-up {
             animation: slideUp 0.5s ease both;
@@ -274,15 +255,12 @@ export default function ResidentLogin() {
           .scale-in {
             animation: scaleIn 0.4s ease both;
           }
-          .fade-in {
-            animation: fadeIn 0.3s ease both;
-          }
         `}</style>
 
-        <div style={{ maxWidth: 450, width: '100%', margin: '0 auto' }}>
+        <div style={{ maxWidth: 450, width: '100%', margin: '0 auto', position: 'relative', zIndex: 2 }}>
           
           {/* ============================================
-              PWA INSTALL PROMPT - Only shown in browser (not installed yet)
+              PWA INSTALL PROMPT
           ============================================ */}
           
           <div className="scale-in" style={{ marginBottom: 16, textAlign: 'center' }}>
@@ -297,15 +275,16 @@ export default function ResidentLogin() {
                 }
               }}
               style={{
-                background: 'rgba(255,255,255,0.95)',
-                border: `1px solid ${T.border}`,
+                background: 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(10px)',
+                border: `1px solid rgba(255,255,255,0.2)`,
                 borderRadius: 100,
                 padding: '10px 24px',
                 fontSize: 13,
                 fontWeight: 500,
-                color: T.navy,
+                color: '#fff',
                 cursor: 'pointer',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
                 transition: 'all 0.2s ease'
               }}
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
@@ -316,19 +295,19 @@ export default function ResidentLogin() {
           </div>
 
           {/* ============================================
-              MAIN CARD CONTAINER
+              MAIN CARD CONTAINER - Glass morphism effect
           ============================================ */}
           
           <div className="scale-in" style={{
-            background: T.white,
+            background: 'rgba(255,255,255,0.98)',
             borderRadius: 32,
             overflow: 'hidden',
-            boxShadow: '0 20px 40px rgba(27,43,107,0.08)',
-            border: `1px solid ${T.border}`
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            backdropFilter: 'blur(10px)'
           }}>
             
             {/* ============================================
-                HEADER SECTION - Branding with gradient
+                HEADER SECTION - No white box for logo
             ============================================ */}
             
             <div style={{
@@ -337,7 +316,7 @@ export default function ResidentLogin() {
               textAlign: 'center',
               position: 'relative'
             }}>
-              {/* Decorative circles for visual interest */}
+              {/* Decorative circles */}
               <div style={{
                 position: 'absolute',
                 top: -50,
@@ -345,7 +324,7 @@ export default function ResidentLogin() {
                 width: 150,
                 height: 150,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'rgba(255,255,255,0.05)',
                 pointerEvents: 'none'
               }} />
               <div style={{
@@ -355,40 +334,37 @@ export default function ResidentLogin() {
                 width: 100,
                 height: 100,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'rgba(255,255,255,0.05)',
                 pointerEvents: 'none'
               }} />
               
-              {/* SYNDIX Logo */}
+              {/* SYNDIX Logo - No white background, just the logo on gradient */}
               <div style={{
-                width: 70,
-                height: 70,
-                borderRadius: 20,
-                background: T.white,
+                width: 80,
+                height: 80,
+                margin: '0 auto 16px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-                boxShadow: '0 8px 20px rgba(0,0,0,0.1)'
+                justifyContent: 'center'
               }}>
                 <img
                   src="/logo3.png"
                   alt="SYNDIX"
                   style={{
-                    width: 50,
-                    height: 50,
-                    objectFit: 'contain'
+                    width: 70,
+                    height: 70,
+                    objectFit: 'contain',
+                    filter: 'brightness(0) invert(1)' // Makes logo white to match gradient background
                   }}
                   onError={(e) => {
-                    // Fallback if image fails to load
                     const target = e.currentTarget;
                     target.style.display = 'none';
                     const parent = target.parentElement;
                     if (parent) {
                       const fallback = document.createElement('div');
-                      fallback.style.fontSize = '28px';
+                      fallback.style.fontSize = '36px';
                       fallback.style.fontWeight = 'bold';
-                      fallback.style.color = T.navy;
+                      fallback.style.color = '#fff';
                       fallback.textContent = 'S';
                       parent.appendChild(fallback);
                     }
@@ -408,14 +384,14 @@ export default function ResidentLogin() {
               <p style={{
                 margin: '8px 0 0',
                 fontSize: 13,
-                color: 'rgba(255,255,255,0.75)'
+                color: 'rgba(255,255,255,0.8)'
               }}>
                 Your apartment portal is ready
               </p>
             </div>
 
             {/* ============================================
-                SUCCESS CHECKMARK - Confirmation animation
+                SUCCESS CHECKMARK
             ============================================ */}
             
             <div className="scale-in" style={{
@@ -430,7 +406,7 @@ export default function ResidentLogin() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: '0 6px 16px rgba(0,196,140,0.25)'
+                boxShadow: '0 6px 16px rgba(0,196,140,0.3)'
               }}>
                 <CheckCircle size={32} color="#fff" />
               </div>
@@ -442,7 +418,6 @@ export default function ResidentLogin() {
             
             <div className="slide-up" style={{ padding: '24px 24px 32px' }}>
               
-              {/* Resident Info Container */}
               <div style={{
                 background: T.surface,
                 borderRadius: 20,
@@ -450,7 +425,7 @@ export default function ResidentLogin() {
                 marginBottom: 24,
                 border: `1px solid ${T.border}`
               }}>
-                {/* Resident Name - Centered */}
+                {/* Resident Name */}
                 <div style={{ textAlign: 'center', marginBottom: 20 }}>
                   <User size={24} color={T.teal} style={{ margin: '0 auto 8px' }} />
                   <p style={{ margin: 0, fontSize: 12, color: T.textSm, letterSpacing: 0.5 }}>WELCOME</p>
@@ -459,14 +434,13 @@ export default function ResidentLogin() {
                   </h2>
                 </div>
 
-                {/* Divider */}
                 <div style={{
                   height: 1,
                   background: T.border,
                   margin: '16px 0'
                 }} />
 
-                {/* Apartment Number - Left/Right layout */}
+                {/* Apartment Number */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Home size={18} color={T.orange} />
@@ -475,7 +449,7 @@ export default function ResidentLogin() {
                   <span style={{ fontSize: 16, fontWeight: 700, color: T.navy }}>{apartmentNumber}</span>
                 </div>
 
-                {/* Building Name - Left/Right layout */}
+                {/* Building Name */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <Building2 size={18} color={T.teal} />
@@ -486,7 +460,7 @@ export default function ResidentLogin() {
               </div>
 
               {/* ============================================
-                  CONTINUE BUTTON - Entry to dashboard
+                  CONTINUE BUTTON
               ============================================ */}
               
               <button
@@ -506,22 +480,21 @@ export default function ResidentLogin() {
                   fontSize: 16,
                   fontWeight: 600,
                   transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(27,43,107,0.2)'
+                  boxShadow: '0 4px 12px rgba(27,43,107,0.3)'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(27,43,107,0.3)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(27,43,107,0.4)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(27,43,107,0.2)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(27,43,107,0.3)';
                 }}
               >
                 Continue to Dashboard
                 <ArrowRight size={18} />
               </button>
 
-              {/* Footer */}
               <p style={{
                 textAlign: 'center',
                 marginTop: 20,
