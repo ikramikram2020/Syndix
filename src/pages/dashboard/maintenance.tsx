@@ -50,42 +50,30 @@ export default function MaintenanceManagement() {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.log('No user logged in');
       router.push('/login');
       setLoading(false);
       return;
     }
     
-    console.log('Logged in syndic ID:', user.id);
-    
-    // Use maybeSingle() instead of single() to avoid 0-row error
+    // Get the building where this user is syndic
     const { data: buildingData, error: buildingError } = await supabase
       .from('buildings')
       .select('*')
       .eq('syndic_id', user.id)
       .maybeSingle();
     
-    if (buildingError) {
-      console.error('Error fetching building:', buildingError);
+    if (buildingError || !buildingData) {
+      console.error('No building found for this syndic');
       setLoading(false);
       return;
     }
     
-    if (!buildingData) {
-      console.log('No building found for syndic:', user.id);
-      setLoading(false);
-      return;
-    }
-    
-    console.log('Building found:', buildingData.name);
     setBuilding(buildingData);
     await fetchRequests(buildingData.id);
   };
 
   const fetchRequests = async (buildingId: string) => {
     try {
-      console.log('Fetching requests for building:', buildingId);
-      
       // Get all maintenance requests for this building
       const { data: requestsData, error: requestsError } = await supabase
         .from('maintenance_requests')
@@ -93,28 +81,41 @@ export default function MaintenanceManagement() {
         .eq('building_id', buildingId)
         .order('created_at', { ascending: false });
       
-      if (requestsError) {
-        console.error('Error fetching requests:', requestsError);
+      if (requestsError || !requestsData) {
         setRequests([]);
+        setLoading(false);
         return;
       }
       
-      console.log('Raw requests found:', requestsData?.length || 0);
-      
-      if (!requestsData || requestsData.length === 0) {
+      if (requestsData.length === 0) {
         setRequests([]);
+        setLoading(false);
         return;
       }
       
-      // For each request, get resident details
-      const formattedRequests = await Promise.all(requestsData.map(async (req: any) => {
-        // Get resident details
-        const { data: residentData } = await supabase
-          .from('residents')
-          .select('full_name, phone, email, apartment_number')
-          .eq('id', req.resident_id)
-          .maybeSingle();
-        
+      // Get unique resident IDs
+      const residentIds = [...new Set(requestsData.map(r => r.resident_id))];
+      
+      // Fetch all residents in one query
+      const { data: residentsData } = await supabase
+        .from('residents')
+        .select('id, full_name, phone, email, apartment_number')
+        .in('id', residentIds);
+      
+      // Create a map for quick lookup
+      const residentMap = new Map();
+      residentsData?.forEach(r => {
+        residentMap.set(r.id, {
+          full_name: r.full_name,
+          apartment_number: r.apartment_number,
+          phone: r.phone,
+          email: r.email
+        });
+      });
+      
+      // Format requests with resident info
+      const formattedRequests = requestsData.map(req => {
+        const resident = residentMap.get(req.resident_id);
         return {
           id: req.id,
           title: req.title,
@@ -123,17 +124,15 @@ export default function MaintenanceManagement() {
           status: req.status,
           created_at: req.created_at,
           completed_at: req.completed_at,
-          resident_id: req.resident_id,  // IMPORTANT: Keep this for notifications
-          resident_name: residentData?.full_name || 'Unknown Resident',
-          apartment_number: residentData?.apartment_number || '?',
-          resident_phone: residentData?.phone,
-          resident_email: residentData?.email
+          resident_id: req.resident_id,
+          resident_name: resident?.full_name || 'Loading...',
+          apartment_number: resident?.apartment_number || '?',
+          resident_phone: resident?.phone,
+          resident_email: resident?.email
         };
-      }));
+      });
       
-      console.log('Formatted requests:', formattedRequests.length);
       setRequests(formattedRequests);
-      
     } catch (err) {
       console.error('Error:', err);
       setRequests([]);
@@ -164,9 +163,9 @@ export default function MaintenanceManagement() {
     }
   };
 
-  const updateStatus = async (requestId: string, status: string) => {
-    const updateData: any = { status };
-    if (status === 'completed') {
+  const updateStatus = async (requestId: string, newStatus: string) => {
+    const updateData: any = { status: newStatus };
+    if (newStatus === 'completed') {
       updateData.completed_at = new Date().toISOString();
     }
     
@@ -178,13 +177,14 @@ export default function MaintenanceManagement() {
     if (error) {
       alert('Error updating status: ' + error.message);
     } else {
-      if (building) {
-        await fetchRequests(building.id);
-      }
+      // Update local state
+      setRequests(prev => prev.map(r => 
+        r.id === requestId ? { ...r, status: newStatus } : r
+      ));
       if (selectedRequest && selectedRequest.id === requestId) {
-        setSelectedRequest({ ...selectedRequest, status });
+        setSelectedRequest({ ...selectedRequest, status: newStatus });
       }
-      alert(`✅ Request marked as ${status}!`);
+      alert(`✅ Request marked as ${newStatus}!`);
     }
   };
 
@@ -264,19 +264,13 @@ export default function MaintenanceManagement() {
   return (
     <Layout title="Maintenance Requests" subtitle="Manage resident maintenance tickets">
       {/* Hero Section */}
-      <div className="fade-up" style={{
+      <div style={{
         marginBottom:24, borderRadius:20, padding:'26px 30px',
         background: `linear-gradient(130deg, ${T.navyDeep} 0%, ${T.navy} 55%, #1A4D7C 100%)`,
         position:'relative', overflow:'hidden',
       }}>
-        <div style={{ position:'absolute', right:-40, top:-40, width:220, height:220, borderRadius:'50%', background:`radial-gradient(circle, ${T.teal}20 0%, transparent 70%)`, pointerEvents:'none' }} />
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:3, background:`linear-gradient(90deg, transparent, ${T.orange}, ${T.teal}, transparent)` }} />
         <div style={{ position:'relative', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:16 }}>
           <div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-              <div style={{ width:7, height:7, borderRadius:'50%', background:T.green }} />
-              <span style={{ fontSize:10, color:'rgba(255,255,255,0.45)', letterSpacing:2, fontWeight:600, textTransform:'uppercase' }}>Maintenance Dashboard</span>
-            </div>
             <h2 style={{ margin:'0 0 6px', fontSize:24, fontWeight:800, color:'#fff', letterSpacing:'-0.5px' }}>
               Service Requests 🔧
             </h2>
@@ -284,29 +278,19 @@ export default function MaintenanceManagement() {
               {building?.name || 'Your Building'} · {stats.pending} pending requests
             </p>
           </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={refreshData} disabled={refreshing} style={{
-              padding:'8px 16px', borderRadius:30,
-              background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)',
-              display:'flex', alignItems:'center', gap:8, cursor:'pointer'
-            }}>
-              <RefreshCw size={13} color={T.teal} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-              <span style={{ fontSize:12, color:'rgba(255,255,255,0.7)', fontWeight:600 }}>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-            <div style={{
-              padding:'8px 16px', borderRadius:30,
-              background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)',
-              display:'flex', alignItems:'center', gap:8,
-            }}>
-              <Wrench size={13} color={T.teal} />
-              <span style={{ fontSize:12, color:'rgba(255,255,255,0.7)', fontWeight:600 }}>{stats.total} Total</span>
-            </div>
-          </div>
+          <button onClick={refreshData} disabled={refreshing} style={{
+            padding:'8px 16px', borderRadius:30,
+            background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.12)',
+            display:'flex', alignItems:'center', gap:8, cursor:'pointer', color:'#fff'
+          }}>
+            <RefreshCw size={13} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            <span style={{ fontSize:12 }}>{refreshing ? 'Refreshing...' : 'Refresh'}</span>
+          </button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="fade-up-2" style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:20 }}>
         <div style={{ background:T.white, borderRadius:16, padding:18, border:`1px solid ${T.border}` }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:38, height:38, borderRadius:10, background:'#EEF1FB', display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -354,12 +338,11 @@ export default function MaintenanceManagement() {
       </div>
 
       {/* Requests Grid */}
-      <div className="fade-up-3" style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:18 }}>
         {requests.length === 0 ? (
           <div style={{ gridColumn:'span 2', background:T.white, borderRadius:18, padding:'48px 20px', textAlign:'center', border:`1px solid ${T.border}` }}>
             <Wrench size={48} color={T.textSm} style={{ margin:'0 auto 12px', display:'block' }} />
             <p style={{ margin:0, fontSize:13, color:T.textSm }}>No maintenance requests yet</p>
-            <p style={{ margin:'8px 0 0', fontSize:11, color:T.textSm }}>Residents will appear here when they submit requests</p>
           </div>
         ) : (
           requests.map((req) => {
@@ -391,7 +374,7 @@ export default function MaintenanceManagement() {
                   <h3 style={{ margin:'0 0 8px', fontSize:16, fontWeight:700, color:T.navy }}>{req.title}</h3>
                   <p style={{ margin:'0 0 12px', fontSize:13, color:T.textMd, lineHeight:1.5 }}>{req.description.substring(0, 80)}...</p>
                   
-                  {/* Resident Info */}
+                  {/* Resident Info - Now shows correctly */}
                   <div style={{
                     background: T.surface,
                     borderRadius: 12,
@@ -478,33 +461,21 @@ export default function MaintenanceManagement() {
               </div>
             </div>
 
-            {/* Priority & Status */}
-            <div style={{ display:'flex', gap:12, marginBottom:20 }}>
-              <div style={{ flex:1, background:T.surface, borderRadius:12, padding:12, textAlign:'center' }}>
-                <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Priority</p>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  {getPriorityIcon(selectedRequest.priority)}
-                  <span style={{ fontSize:13, fontWeight:600, color:T.navy, textTransform:'capitalize' }}>{selectedRequest.priority}</span>
-                </div>
-              </div>
-              <div style={{ flex:1, background:T.surface, borderRadius:12, padding:12, textAlign:'center' }}>
-                <p style={{ margin:'0 0 4px', fontSize:11, color:T.textSm }}>Status</p>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-                  {getStatusBadge(selectedRequest.status).icon({ size:14, color: getStatusBadge(selectedRequest.status).text })}
-                  <span style={{ fontSize:13, fontWeight:600, color:getStatusBadge(selectedRequest.status).text }}>{getStatusBadge(selectedRequest.status).label}</span>
-                </div>
-              </div>
-            </div>
-
             {/* Status Update Buttons */}
             <div style={{ display:'flex', gap:10, marginBottom:20 }}>
               {selectedRequest.status === 'pending' && (
-                <button onClick={() => updateStatus(selectedRequest.id, 'in_progress')} style={{ flex:1, padding:'12px', background:T.navy, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                <button 
+                  onClick={() => updateStatus(selectedRequest.id, 'in_progress')} 
+                  style={{ flex:1, padding:'12px', background:T.navy, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}
+                >
                   Start Work
                 </button>
               )}
               {selectedRequest.status === 'in_progress' && (
-                <button onClick={() => updateStatus(selectedRequest.id, 'completed')} style={{ flex:1, padding:'12px', background:T.green, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                <button 
+                  onClick={() => updateStatus(selectedRequest.id, 'completed')} 
+                  style={{ flex:1, padding:'12px', background:T.green, border:'none', borderRadius:12, color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}
+                >
                   Mark Complete
                 </button>
               )}
@@ -553,7 +524,7 @@ export default function MaintenanceManagement() {
                   rows={3} 
                   value={newMessage} 
                   onChange={(e) => setNewMessage(e.target.value)} 
-                  placeholder="Type your message here... The resident will be able to reply." 
+                  placeholder="Type your message here..." 
                   style={{ 
                     flex:1, 
                     padding:'12px', 
@@ -563,9 +534,7 @@ export default function MaintenanceManagement() {
                     fontFamily:'inherit', 
                     outline:'none', 
                     resize:'vertical' 
-                  }} 
-                  onFocus={e => e.currentTarget.style.borderColor = T.teal} 
-                  onBlur={e => e.currentTarget.style.borderColor = T.border} 
+                  }}
                 />
                 <button 
                   onClick={sendMessage} 
@@ -579,8 +548,7 @@ export default function MaintenanceManagement() {
                     cursor: newMessage.trim() ? 'pointer' : 'not-allowed', 
                     display:'flex', 
                     alignItems:'center', 
-                    justifyContent:'center',
-                    transition:'all 0.2s'
+                    justifyContent:'center'
                   }}
                 >
                   <Send size={18} color="#fff" />
