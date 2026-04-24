@@ -4,8 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import { 
   Home, CreditCard, Wrench, Bell, User, LogOut, 
-  DollarSign, CheckCircle, Shield, Sparkles, Star, Award,
-  Clock, ChevronRight, Ticket
+  CheckCircle, Shield, Sparkles, Star, Award,
+  Clock, ChevronRight, Ticket, FileText, Zap
 } from 'lucide-react';
 
 // ============================================
@@ -286,50 +286,115 @@ export default function ResidentDashboard() {
       </div>
 
       {/* ============================================
-          STATS CARDS - Primary card stands out
+          STATS CARDS - OPTION 1 (BEST CHOICE)
+          Clean Financial Overview with DZD currency
       ============================================ */}
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           
-          {/* Primary Card - Due Amount (Bigger, Navy background) */}
+          {/* Due Amount Card - Primary Card */}
           <div className="fade-in-up card-hover" style={{ 
-            background: T.navy, 
+            background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
             borderRadius: 20, 
-            padding: '16px',
-            cursor: 'pointer'
+            padding: '16px 12px',
+            cursor: 'pointer',
+            position: 'relative',
+            overflow: 'hidden'
           }} onClick={() => router.push('/resident/payments')}>
-            <DollarSign size={20} color={T.orange} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Due Amount</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.orange }}>{stats.dueAmount.toLocaleString()} DZD</p>
+            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
+            
+            {/* Pending invoice badge */}
+            {stats.pendingCount > 0 && (
+              <div style={{
+                position: 'absolute',
+                top: 12,
+                right: 12,
+                background: T.orange,
+                borderRadius: 20,
+                padding: '2px 8px',
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#fff'
+              }}>
+                {stats.pendingCount}
+              </div>
+            )}
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 10, 
+                background: 'rgba(255,255,255,0.12)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CreditCard size={16} color={T.orange} />
+              </div>
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 500 }}>Total Due</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#fff', letterSpacing: '-0.5px' }}>
+              {stats.dueAmount.toLocaleString()} <span style={{ fontSize: 12, fontWeight: 500 }}>DZD</span>
+            </p>
+            <p style={{ margin: '6px 0 0', fontSize: 10, color: 'rgba(255,255,255,0.6)' }}>
+              {stats.pendingCount} unpaid invoice{stats.pendingCount !== 1 ? 's' : ''}
+            </p>
           </div>
           
-          {/* Secondary Card - Paid */}
+          {/* Paid Invoices Card */}
           <div className="fade-in-up card-hover" style={{ 
             background: T.white, 
             borderRadius: 20, 
-            padding: '16px',
+            padding: '16px 12px',
             border: `1px solid ${T.border}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <CheckCircle size={18} color={T.green} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: T.textSm }}>Paid Invoices</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.navy }}>{stats.paidCount}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 10, 
+                background: `${T.green}15`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <CheckCircle size={16} color={T.green} />
+              </div>
+              <span style={{ fontSize: 11, color: T.textSm, fontWeight: 500 }}>Paid</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: T.navy, letterSpacing: '-0.5px' }}>{stats.paidCount}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 10, color: T.textSm }}>paid invoices</p>
           </div>
           
-          {/* Secondary Card - Pending */}
+          {/* Pending Card */}
           <div className="fade-in-up card-hover" style={{ 
             background: T.white, 
             borderRadius: 20, 
-            padding: '16px',
+            padding: '16px 12px',
             border: `1px solid ${T.border}`,
             boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             cursor: 'pointer'
           }} onClick={() => router.push('/resident/payments')}>
-            <Clock size={18} color={T.orange} />
-            <p style={{ margin: '8px 0 4px', fontSize: 11, color: T.textSm }}>Pending</p>
-            <p style={{ margin: 0, fontSize: 22, fontWeight: 700, color: T.navy }}>{stats.pendingCount}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ 
+                width: 32, 
+                height: 32, 
+                borderRadius: 10, 
+                background: `${T.orange}15`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Clock size={16} color={T.orange} />
+              </div>
+              <span style={{ fontSize: 11, color: T.textSm, fontWeight: 500 }}>Pending</span>
+            </div>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 700, color: T.navy, letterSpacing: '-0.5px' }}>{stats.pendingCount}</p>
+            <p style={{ margin: '6px 0 0', fontSize: 10, color: T.textSm }}>pending review</p>
           </div>
         </div>
       </div>
@@ -565,7 +630,10 @@ export default function ResidentDashboard() {
         </div>
       </div>
 
-      {/* Attention Section - If user has unpaid fees */}
+      {/* ============================================
+          ATTENTION SECTION - Unpaid fees reminder
+      ============================================ */}
+      
       {stats.dueAmount > 0 && (
         <div style={{ 
           position: 'fixed', 
