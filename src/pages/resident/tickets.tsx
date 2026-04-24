@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '../../lib/supabase';
-import { useResidentAuth } from '../../hooks/useResidentAuth';
 import { T } from '../../styles/theme';
 import { 
   Ticket, Plus, AlertCircle, CheckCircle, Clock,
@@ -38,7 +37,7 @@ const predefinedCategories = [
 
 export default function ResidentTickets() {
   const router = useRouter();
-  const { resident, loading: authLoading } = useResidentAuth();
+  const [resident, setResident] = useState<any>(null);
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -54,55 +53,75 @@ export default function ResidentTickets() {
   const [buildingName, setBuildingName] = useState('');
   const [useCustomCategory, setUseCustomCategory] = useState(false);
 
+  // Get resident from localStorage directly
   useEffect(() => {
-    if (!authLoading && resident?.id) {
-      fetchTickets();
-      fetchBuildingName();
+    const token = localStorage.getItem('resident_token');
+    const residentData = localStorage.getItem('resident_data');
+    
+    if (!token || !residentData) {
+      router.push('/resident');
+      return;
     }
-  }, [authLoading, resident]);
+    
+    try {
+      const resident = JSON.parse(residentData);
+      setResident(resident);
+      fetchTickets(resident.id);
+      fetchBuildingName(resident.apartment_number);
+    } catch (err) {
+      console.error('Error parsing resident:', err);
+      setLoading(false);
+      router.push('/resident');
+    }
+  }, []);
 
-  const fetchBuildingName = async () => {
-    if (!resident?.apartment_number) return;
+  const fetchBuildingName = async (apartmentNumber: string) => {
+    if (!apartmentNumber) return;
     
     try {
       const { data: apartment, error } = await supabase
         .from('apartments')
-        .select('buildings(name)')
-        .eq('apartment_number', resident.apartment_number)
-        .single();
+        .select('building_id')
+        .eq('apartment_number', apartmentNumber)
+        .maybeSingle();
       
-      if (error) {
-        console.error('Error fetching building:', error);
+      if (error || !apartment) {
         return;
       }
       
-      if (apartment?.buildings) {
-        const building = apartment.buildings as any;
-        setBuildingName(building.name || 'Your Building');
+      const { data: building } = await supabase
+        .from('buildings')
+        .select('name')
+        .eq('id', apartment.building_id)
+        .maybeSingle();
+      
+      if (building) {
+        setBuildingName(building.name);
       }
     } catch (err) {
       console.error('Error:', err);
     }
   };
 
-  const fetchTickets = async () => {
-    if (!resident?.id) return;
+  const fetchTickets = async (residentId: string) => {
     setLoading(true);
     
     try {
       const { data, error } = await supabase
         .from('tickets')
         .select('*')
-        .eq('resident_id', resident.id)
+        .eq('resident_id', residentId)
         .order('created_at', { ascending: false });
       
       if (error) {
         console.error('Error fetching tickets:', error);
+        setTickets([]);
       } else {
         setTickets(data || []);
       }
     } catch (err) {
       console.error('Fetch error:', err);
+      setTickets([]);
     } finally {
       setLoading(false);
     }
@@ -114,22 +133,24 @@ export default function ResidentTickets() {
       return;
     }
 
+    if (useCustomCategory && !formData.customCategory) {
+      alert('Please enter a custom category');
+      return;
+    }
+
+    if (!resident) return;
+
     setSubmitting(true);
     
     try {
-      // Get apartment info
-      const { data: apartment, error: aptError } = await supabase
-        .from('apartments')
-        .select('building_id, apartment_number')
-        .eq('apartment_number', resident?.apartment_number)
-        .single();
+      // Get building_id from resident
+      const { data: residentData } = await supabase
+        .from('residents')
+        .select('building_id')
+        .eq('id', resident.id)
+        .maybeSingle();
 
-      if (aptError) {
-        console.error('Error fetching apartment:', aptError);
-        alert('Error finding your apartment. Please contact support.');
-        setSubmitting(false);
-        return;
-      }
+      const buildingId = residentData?.building_id;
 
       // Get final category value
       const finalCategory = useCustomCategory && formData.customCategory 
@@ -139,25 +160,18 @@ export default function ResidentTickets() {
       const { error } = await supabase
         .from('tickets')
         .insert([{
-          resident_id: resident?.id,
-          building_id: apartment?.building_id,
+          resident_id: resident.id,
+          building_id: buildingId || null,
           title: formData.title,
           description: formData.description,
           category: finalCategory,
           priority: formData.priority,
-          status: 'pending'
+          status: 'pending',
+          created_at: new Date().toISOString()
         }]);
 
       if (error) {
-        console.error('Insert error:', error);
-        
-        if (error.message?.includes('row-level security')) {
-          alert('Permission denied. Please contact your syndic to enable ticket system.');
-        } else if (error.message?.includes('foreign key')) {
-          alert('Database error. Please contact support.');
-        } else {
-          alert('Error submitting ticket: ' + error.message);
-        }
+        alert('Error submitting ticket: ' + error.message);
       } else {
         setShowForm(false);
         setFormData({ 
@@ -168,7 +182,7 @@ export default function ResidentTickets() {
           priority: 'medium' 
         });
         setUseCustomCategory(false);
-        await fetchTickets();
+        await fetchTickets(resident.id);
         alert('✅ Ticket submitted successfully! The syndic has been notified.');
       }
     } catch (err) {
@@ -191,7 +205,6 @@ export default function ResidentTickets() {
   const getCategoryLabel = (category: string) => {
     const found = predefinedCategories.find(c => c.value === category);
     if (found) return found.label;
-    // Format custom category: convert underscores to spaces and capitalize
     return category.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
@@ -244,7 +257,7 @@ export default function ResidentTickets() {
     resolved: tickets.filter(t => t.status === 'resolved').length
   };
 
-  if (authLoading || loading) {
+  if (loading) {
     return (
       <div style={{ 
         minHeight: '100vh', 
@@ -253,7 +266,10 @@ export default function ResidentTickets() {
         alignItems: 'center',
         justifyContent: 'center'
       }}>
-        <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite' }} />
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 48, height: 48, borderRadius: '50%', border: `3px solid ${T.orange}`, borderTopColor: 'transparent', animation: 'spin 0.75s linear infinite', margin: '0 auto 16px' }} />
+          <p style={{ color: '#fff' }}>Loading tickets...</p>
+        </div>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -276,6 +292,9 @@ export default function ResidentTickets() {
         @keyframes slideUp {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
         .fade-in-up {
           animation: fadeInUp 0.5s ease both;
@@ -464,7 +483,6 @@ export default function ResidentTickets() {
                           {getCategoryLabel(ticket.category)}
                         </span>
                       </div>
-                      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: T.navy }}>{ticket.title}</h3>
                     </div>
                     <div style={{
                       display: 'flex',
@@ -479,6 +497,7 @@ export default function ResidentTickets() {
                     </div>
                   </div>
                   
+                  <h3 style={{ margin: '0 0 8px', fontSize: 15, fontWeight: 700, color: T.navy }}>{ticket.title}</h3>
                   <p style={{ margin: '0 0 12px', fontSize: 13, color: T.textMd, lineHeight: 1.5 }}>
                     {ticket.description.length > 100 ? ticket.description.substring(0, 100) + '...' : ticket.description}
                   </p>
@@ -498,7 +517,7 @@ export default function ResidentTickets() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Eye size={12} color={T.teal} />
-                      <span style={{ fontSize: 11, color: T.teal }}>Tap for details</span>
+                      <span style={{ fontSize: 11, color: T.teal }}>View details</span>
                     </div>
                   </div>
                 </div>
@@ -508,7 +527,7 @@ export default function ResidentTickets() {
         )}
       </div>
 
-      {/* New Ticket Modal */}
+      {/* New Ticket Modal - Simplified */}
       {showForm && (
         <>
           <div 
@@ -572,71 +591,28 @@ export default function ResidentTickets() {
                     fontSize: 14,
                     outline: 'none'
                   }}
-                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
               
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                  <label style={{ fontSize: 13, fontWeight: 600, color: T.textMd }}>Category</label>
-                  <button
-                    type="button"
-                    onClick={() => setUseCustomCategory(!useCustomCategory)}
-                    style={{
-                      fontSize: 11,
-                      color: T.teal,
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4
-                    }}
-                  >
-                    <PlusCircle size={12} />
-                    {useCustomCategory ? 'Use predefined' : 'Add custom'}
-                  </button>
-                </div>
-                
-                {!useCustomCategory ? (
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      background: T.white,
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                    onBlur={e => e.currentTarget.style.borderColor = T.border}
-                  >
-                    {predefinedCategories.map(cat => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    value={formData.customCategory}
-                    onChange={(e) => setFormData({ ...formData, customCategory: e.target.value })}
-                    placeholder="Enter custom category (e.g., Plumbing, Electrical, etc.)"
-                    style={{
-                      width: '100%',
-                      padding: '12px 14px',
-                      border: `1px solid ${T.border}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      outline: 'none'
-                    }}
-                    onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                    onBlur={e => e.currentTarget.style.borderColor = T.border}
-                  />
-                )}
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: T.textMd, marginBottom: 6 }}>Category</label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    border: `1px solid ${T.border}`,
+                    borderRadius: 12,
+                    fontSize: 14,
+                    background: T.white,
+                    outline: 'none'
+                  }}
+                >
+                  {predefinedCategories.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
               </div>
               
               <div>
@@ -653,8 +629,6 @@ export default function ResidentTickets() {
                     background: T.white,
                     outline: 'none'
                   }}
-                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 >
                   <option value="low">Low - Can wait</option>
                   <option value="medium">Medium - Needs attention</option>
@@ -680,28 +654,25 @@ export default function ResidentTickets() {
                     outline: 'none',
                     resize: 'vertical'
                   }}
-                  onFocus={e => e.currentTarget.style.borderColor = T.teal}
-                  onBlur={e => e.currentTarget.style.borderColor = T.border}
                 />
               </div>
             </div>
             
             <button
               onClick={submitTicket}
-              disabled={submitting || !formData.title || (useCustomCategory && !formData.customCategory)}
+              disabled={submitting || !formData.title}
               style={{
                 width: '100%',
                 marginTop: 24,
                 padding: '14px',
-                background: (!formData.title || (useCustomCategory && !formData.customCategory)) ? T.textSm : T.orange,
+                background: (!formData.title) ? T.textSm : T.orange,
                 border: 'none',
                 borderRadius: 14,
                 color: '#fff',
                 fontSize: 15,
                 fontWeight: 600,
-                cursor: (!formData.title || (useCustomCategory && !formData.customCategory) || submitting) ? 'not-allowed' : 'pointer',
-                opacity: submitting ? 0.7 : 1,
-                transition: 'all 0.15s'
+                cursor: (!formData.title || submitting) ? 'not-allowed' : 'pointer',
+                opacity: submitting ? 0.7 : 1
               }}
             >
               {submitting ? 'Submitting...' : 'Submit Ticket'}
@@ -710,7 +681,7 @@ export default function ResidentTickets() {
         </>
       )}
 
-      {/* Ticket Details Modal */}
+      {/* Ticket Details Modal - Simplified */}
       {showDetails && (
         <>
           <div 
@@ -752,17 +723,13 @@ export default function ResidentTickets() {
                   borderRadius: 10,
                   background: T.surface,
                   border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  cursor: 'pointer'
                 }}
               >
                 <X size={16} color={T.textMd} />
               </button>
             </div>
 
-            {/* Status Message */}
             <div style={{
               background: T.surface,
               borderRadius: 16,
@@ -780,7 +747,6 @@ export default function ResidentTickets() {
               </p>
             </div>
 
-            {/* Ticket Details */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
                 <span style={{
@@ -815,7 +781,6 @@ export default function ResidentTickets() {
               </div>
             </div>
 
-            {/* Response from Syndic */}
             {showDetails.response && (
               <div style={{
                 background: T.tealLight,
