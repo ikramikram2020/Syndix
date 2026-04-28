@@ -55,7 +55,7 @@ export default function Footer() {
               <img
                 src="logo2.png"
                 alt="Syndix Logo"
-                className="h-13 w-13 object-contain"
+                className="h-11 w-11 object-contain"
               />
             </Link>
             <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
