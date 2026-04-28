@@ -16,9 +16,9 @@ export default function HomePage() {
         <Features />
         <HowItWorks />
         <Pricing />
-        {/* Add other components */}
+        <CallToAction /> 
       </main>
-      <CallToAction /> 
+      
       <Footer />
     </div>
   );
