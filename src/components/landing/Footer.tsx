@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useLanguage } from "../../contexts/LanguageContext";
+import Image from "next/image";
 
 export default function Footer() {
   const { t } = useLanguage();
@@ -35,7 +36,6 @@ export default function Footer() {
     },
   ];
 
-  // Smooth scroll handler for hash links
   const handleHashClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (href.startsWith("#")) {
       e.preventDefault();
@@ -51,14 +51,19 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-3 mb-4">
-              <img
-                src="logo2.png"
-                alt="Syndix Logo"
-                className="h-11 w-11 object-contain"
-              />
+            <Link href="/" className="inline-block mb-4">
+              <div className="relative w-48 h-auto">
+                <Image
+                  src="/syndixlogo (1).png"
+                  alt="Syndix Logo"
+                  width={192}
+                  height={60}
+                  className="object-contain w-full h-auto"
+                  priority
+                />
+              </div>
             </Link>
-            <p className="text-sm text-gray-600 leading-relaxed max-w-xs">
+            <p className="text-sm text-gray-600 leading-relaxed max-w-xs mt-4">
               {t.footer.tagline}
             </p>
             <div className="flex gap-2.5 mt-5">
