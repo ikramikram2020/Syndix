@@ -4,6 +4,7 @@ import Features from "../components/landing/Features";
 import HowItWorks from "../components/landing/HowItWorks";
 import Pricing from "../components/landing/Pricing";
 import Footer from "../components/landing/Footer";
+import CallToAction from '../components/landing/CallToAction';
 // Import other components as needed
 
 export default function HomePage() {
@@ -17,6 +18,7 @@ export default function HomePage() {
         <Pricing />
         {/* Add other components */}
       </main>
+      <CallToAction /> 
       <Footer />
     </div>
   );
