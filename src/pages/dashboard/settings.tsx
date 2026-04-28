@@ -74,22 +74,41 @@ export default function DashboardSettings() {
     
     const initializeSettings = async () => {
       try {
-        const token = localStorage.getItem('admin_token');
-        const name = localStorage.getItem('admin_name');
-        const email = localStorage.getItem('admin_email');
-        const phone = localStorage.getItem('admin_phone');
+        // Check for ANY of the possible token names from your dashboard login
+        const token = localStorage.getItem('token') || 
+                     localStorage.getItem('admin_token') || 
+                     localStorage.getItem('dashboard_token') ||
+                     localStorage.getItem('auth_token');
+        
+        // Get admin info from various possible storage keys
+        const name = localStorage.getItem('admin_name') || 
+                    localStorage.getItem('name') || 
+                    localStorage.getItem('user_name') ||
+                    'Administrator';
+        
+        const email = localStorage.getItem('admin_email') || 
+                     localStorage.getItem('email') || 
+                     '';
+        
+        const phone = localStorage.getItem('admin_phone') || 
+                     localStorage.getItem('phone') || 
+                     '';
+        
+        const buildingId = localStorage.getItem('admin_building_id') || 
+                          localStorage.getItem('building_id') || 
+                          '';
         
         if (!token) {
-          router.push('/dashboard');
+          router.replace('/dashboard'); // Use replace instead of push
           return;
         }
         
         if (isMounted) {
-          setAdminName(name || 'Administrator');
-          setAdminEmail(email || '');
-          setAdminPhone(phone || '');
-          await fetchBuildingData();
-          await fetchBuildingStats();
+          setAdminName(name);
+          setAdminEmail(email);
+          setAdminPhone(phone);
+          await fetchBuildingData(buildingId);
+          await fetchBuildingStats(buildingId);
           await loadSettings();
         }
       } catch (error) {
@@ -107,11 +126,10 @@ export default function DashboardSettings() {
   // DATA FETCHING
   // ============================================
   
-  const fetchBuildingData = async () => {
+  const fetchBuildingData = async (buildingId: string) => {
+    if (!buildingId) return;
+    
     try {
-      const buildingId = localStorage.getItem('admin_building_id');
-      if (!buildingId) return;
-      
       const { data: building } = await supabase
         .from('buildings')
         .select('*')
@@ -127,11 +145,10 @@ export default function DashboardSettings() {
     }
   };
   
-  const fetchBuildingStats = async () => {
+  const fetchBuildingStats = async (buildingId: string) => {
+    if (!buildingId) return;
+    
     try {
-      const buildingId = localStorage.getItem('admin_building_id');
-      if (!buildingId) return;
-      
       // Get total apartments
       const { count: apartmentCount } = await supabase
         .from('apartments')
@@ -191,7 +208,18 @@ export default function DashboardSettings() {
   // ============================================
   
   const handleLogout = () => {
-    localStorage.clear();
+    // Clear all possible auth keys
+    localStorage.removeItem('token');
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('dashboard_token');
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('admin_name');
+    localStorage.removeItem('admin_email');
+    localStorage.removeItem('admin_phone');
+    localStorage.removeItem('admin_building_id');
+    localStorage.removeItem('building_id');
+    localStorage.removeItem('dashboard_settings');
+    
     router.push('/dashboard');
   };
   
@@ -215,6 +243,20 @@ export default function DashboardSettings() {
       localStorage.setItem('admin_email', adminEmail);
       localStorage.setItem('admin_phone', adminPhone);
       
+      // Update in database if possible
+      const adminId = localStorage.getItem('admin_id') || localStorage.getItem('user_id');
+      if (adminId) {
+        await supabase
+          .from('admins')
+          .update({
+            name: adminName,
+            email: adminEmail,
+            phone: adminPhone,
+            updated_at: new Date()
+          })
+          .eq('id', adminId);
+      }
+      
       setSuccessMessage('Settings saved successfully!');
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err) {
@@ -229,16 +271,18 @@ export default function DashboardSettings() {
     setSaving(true);
     
     try {
-      const buildingId = localStorage.getItem('admin_building_id');
+      const buildingId = localStorage.getItem('admin_building_id') || localStorage.getItem('building_id');
       
-      await supabase
-        .from('buildings')
-        .update({
-          name: buildingName,
-          address: buildingAddress,
-          updated_at: new Date()
-        })
-        .eq('id', buildingId);
+      if (buildingId) {
+        await supabase
+          .from('buildings')
+          .update({
+            name: buildingName,
+            address: buildingAddress,
+            updated_at: new Date()
+          })
+          .eq('id', buildingId);
+      }
       
       setSuccessMessage('Building information updated!');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -467,7 +511,6 @@ export default function DashboardSettings() {
           
           {activeTab === 'general' && (
             <div className="fade-in-up">
-              {/* Profile Section */}
               <div style={{
                 background: T.white,
                 borderRadius: 20,
@@ -540,7 +583,6 @@ export default function DashboardSettings() {
                 </div>
               </div>
               
-              {/* Security Section */}
               <div style={{
                 background: T.white,
                 borderRadius: 20,
@@ -811,7 +853,6 @@ export default function DashboardSettings() {
                 </h3>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* Theme Toggle */}
                   <div>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: T.textSm, marginBottom: 8 }}>Theme</label>
                     <div style={{ display: 'flex', gap: 12 }}>
@@ -854,7 +895,6 @@ export default function DashboardSettings() {
                     </div>
                   </div>
                   
-                  {/* Compact View */}
                   <label style={{
                     display: 'flex',
                     alignItems: 'center',
