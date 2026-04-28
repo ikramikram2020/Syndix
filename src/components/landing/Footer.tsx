@@ -54,7 +54,7 @@ export default function Footer() {
             <Link href="/" className="inline-block mb-4">
               <div className="relative w-48 h-auto">
                 <Image
-                  src="/syndixlogo (1).png"
+                  src="logo2.png"
                   alt="Syndix Logo"
                   width={192}
                   height={60}
