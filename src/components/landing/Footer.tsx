@@ -53,7 +53,7 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-4">
               <img
-                src="logo1.png"
+                src="logo.png"
                 alt="Syndix Logo"
                 className="h-30 w-30 object-contain"
               />
