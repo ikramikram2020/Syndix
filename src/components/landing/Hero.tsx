@@ -159,16 +159,16 @@ export default function Hero() {
                 </div>
                 <div className="text-center px-4">
                   <p className="text-white font-bold text-base leading-none">
-                    Résidence Al Nour
+                    Les Jardins d'Hydra
                   </p>
                   <p className="text-white/50 text-xs mt-1.5">
-                    48 Units · 12 Floors
+                    64 Units · 8 Floors
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-400/20 rounded-full border border-emerald-400/25">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs font-semibold text-emerald-300">
-                    96% Occupied
+                    94% Occupied
                   </span>
                 </div>
               </div>
@@ -182,8 +182,8 @@ export default function Hero() {
             <FloatingCard
               icon={Users}
               label="Total Residents"
-              value="124"
-              sub="+4 this month"
+              value="156"
+              sub="+8 this month"
               iconBg="bg-brand-navy/8"
               iconClass="text-brand-navy"
               className="-top-2 -start-2 sm:-start-10"
@@ -192,8 +192,8 @@ export default function Hero() {
             <FloatingCard
               icon={CreditCard}
               label="Monthly Revenue"
-              value="284K DZD"
-              sub="93% collected"
+              value="412K DZD"
+              sub="96% collected"
               iconBg="bg-emerald-50"
               iconClass="text-emerald-600"
               className="top-10 -end-2 sm:-end-10"
@@ -202,7 +202,7 @@ export default function Hero() {
             <FloatingCard
               icon={Wrench}
               label="Open Tickets"
-              value="7 Active"
+              value="3 Active"
               iconBg="bg-orange-50"
               iconClass="text-orange-500"
               className="-bottom-4 -start-2 sm:-start-10"
@@ -237,10 +237,10 @@ export default function Hero() {
 
             <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
               {[
-                { icon: Shield, text: "Secure & Compliant" },
-                { icon: QrCode, text: "QR Access" },
-                { icon: TrendingUp, text: "Live Analytics" },
-                { icon: CheckCircle, text: "Easy Setup" },
+                { icon: Shield, text: "Bank-Grade Security" },
+                { icon: QrCode, text: "Smart QR Access" },
+                { icon: TrendingUp, text: "Real-Time Analytics" },
+                { icon: CheckCircle, text: "5-Min Setup" },
               ].map(({ icon: Icon, text }, i) => (
                 <span
                   key={i}
