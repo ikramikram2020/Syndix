@@ -1,243 +1,252 @@
 import { useLanguage } from "../../contexts/LanguageContext";
-import { 
-  Upload, 
-  Settings, 
-  TrendingUp, 
-  CheckCircle, 
-  ArrowRight,
-  Zap,
-  Sparkles,
-  Building2,
-  Users,
-  CreditCard,
-  Smartphone,
-  Bell,
-  QrCode
-} from "lucide-react";
 import { useState } from "react";
+
+// Define the type for step icons
+type StepIcons = {
+  [key: number]: JSX.Element;
+};
 
 export default function HowItWorks() {
   const { t } = useLanguage();
-  const [hoveredCard, setHoveredCard] = useState<number | null>(null);
+  const [hoveredStep, setHoveredStep] = useState<number | null>(null);
 
-  // Define steps with icons (keeping your exact text)
-  const stepsWithIcons = [
-    {
-      step: "01",
-      title: "Import Your Data",
-      desc: "Upload resident list via Excel or enter manually—takes 10 minutes max",
-      icon: Upload,
-      features: ["Excel Import", "Manual Entry", "Bulk Upload"],
-      color: "from-brand-navy to-brand-teal"
-    },
-    {
-      step: "02",
-      title: "Configure Settings",
-      desc: "Set monthly fees, payment due dates, and notification preferences",
-      icon: Settings,
-      features: ["Set Fees", "Due Dates", "Notifications"],
-      color: "from-brand-orange to-brand-amber"
-    },
-    {
-      step: "03",
-      title: "Start Collecting",
-      desc: "Send payment links via SMS/email, residents pay online or at CCP",
-      icon: TrendingUp,
-      features: ["SMS/Email", "Online Pay", "Track All"],
-      color: "from-brand-teal to-brand-navy"
-    }
-  ];
+  // Icon mapping for each step
+  const stepIcons: StepIcons = {
+    1: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 2v4h4" />
+      </svg>
+    ),
+    2: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    3: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 12l-2 1m0 0l-2-1m2 1v2.5M4 12l2 1m0 0l2-1M6 13v2.5" />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    ),
+    4: (
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    )
+  };
 
-  // Additional features icons
-  const extraFeatures = [
-    { icon: Building2, label: "Building Management" },
-    { icon: Users, label: "Resident Portal" },
-    { icon: CreditCard, label: "DZD Payments" },
-    { icon: QrCode, label: "QR Access" },
-    { icon: Bell, label: "Notifications" },
-    { icon: Smartphone, label: "Mobile App" }
-  ];
+  // Helper function to safely get icon
+  const getStepIcon = (stepNumber: string | number): JSX.Element => {
+    const num = typeof stepNumber === 'string' ? parseInt(stepNumber, 10) : stepNumber;
+    return stepIcons[num] || stepIcons[1];
+  };
 
   return (
-    <section id="how-it-works" className="py-24 bg-gradient-to-b from-white to-brand-bg relative overflow-hidden">
-      {/* Modern Animated Background */}
+    <section id="how-it-works" className="py-24 bg-gradient-to-br from-white via-gray-50 to-white relative overflow-hidden">
+      {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-72 h-72 bg-brand-teal/5 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-brand-amber/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-navy/3 rounded-full blur-3xl"></div>
-        
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-[0.02]">
-          <div className="h-full w-full" style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #1C2B6B 1px, transparent 1px)`,
-            backgroundSize: '40px 40px'
-          }}></div>
-        </div>
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-brand-teal/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-brand-navy/5 rounded-full blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header - UNCHANGED TEXT */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-bold tracking-widest uppercase text-brand-amber bg-brand-amber/10 border border-brand-amber/20 rounded-full mb-4 animate-fade-in">
-            <Sparkles className="w-3 h-3" />
+        <div className="text-center mb-16 animate-fade-in-up">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 text-xs font-bold tracking-widest uppercase text-brand-amber bg-brand-amber/10 border border-brand-amber/20 rounded-full mb-4 backdrop-blur-sm hover:scale-105 transition-transform duration-300">
+            <span className="w-1.5 h-1.5 bg-brand-amber rounded-full animate-ping" />
             {t.howItWorks.badge}
-          </div>
-          <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mb-4 animate-fade-in-up">
+          </span>
+          <h2 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
             {t.howItWorks.headline}
           </h2>
-          <p className="text-lg text-slate-500 max-w-2xl mx-auto animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-            Get started in minutes — no technical skills required
+          <p className="text-slate-500 mt-4 max-w-2xl mx-auto">
+            Simple steps to get started with your investment journey
           </p>
         </div>
 
-        {/* Modern Steps Grid */}
-        <div className="grid md:grid-cols-3 gap-6 relative">
-          {/* Modern Connecting Line */}
-          <div className="hidden md:block absolute top-1/2 left-0 right-0 -translate-y-1/2">
-            <div className="relative h-[1px] bg-gradient-to-r from-transparent via-brand-teal/30 to-transparent">
-              <div className="absolute top-1/2 left-1/3 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand-teal/50"></div>
-              <div className="absolute top-1/2 left-2/3 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand-teal/50"></div>
-            </div>
+        <div className="grid md:grid-cols-3 gap-8 relative">
+          {/* Animated connector lines */}
+          <div className="hidden md:block absolute top-24 left-[16%] right-[16%] h-0.5">
+            <div className="absolute inset-0 bg-gradient-to-r from-brand-navy/20 via-brand-teal/30 to-brand-navy/20" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-teal to-transparent animate-pulse" style={{ width: '30%', left: '35%' }} />
           </div>
 
-          {stepsWithIcons.map((step, i) => {
-            const Icon = step.icon;
-            const isHovered = hoveredCard === i;
-            
-            return (
-              <div
-                key={i}
-                className="relative group animate-fade-in-up"
-                style={{ animationDelay: `${0.2 + i * 0.1}s` }}
-                onMouseEnter={() => setHoveredCard(i)}
-                onMouseLeave={() => setHoveredCard(null)}
-              >
-                {/* Modern Glow Effect */}
-                <div className={`absolute -inset-0.5 bg-gradient-to-r ${step.color} rounded-2xl blur-xl transition-all duration-500 ${
-                  isHovered ? 'opacity-100' : 'opacity-0'
-                }`}></div>
+          {t.howItWorks.steps.map((step: any, i: number) => (
+            <div
+              key={i}
+              className="relative text-center group animate-fade-in-up"
+              style={{ animationDelay: `${i * 150}ms` }}
+              onMouseEnter={() => setHoveredStep(i)}
+              onMouseLeave={() => setHoveredStep(null)}
+            >
+              {/* Step number circle with icon */}
+              <div className="relative inline-flex items-center justify-center w-24 h-24 mb-7">
+                {/* Pulsing background */}
+                <div className={`absolute inset-0 rounded-full bg-gradient-to-br from-brand-navy to-brand-teal opacity-10 transition-all duration-500 ${
+                  hoveredStep === i ? 'scale-150 opacity-20' : 'scale-125'
+                }`} />
                 
-                {/* Modern Card */}
-                <div className={`relative bg-white rounded-2xl p-6 transition-all duration-500 ${
-                  isHovered 
-                    ? 'shadow-2xl -translate-y-1' 
-                    : 'shadow-lg hover:shadow-xl'
+                {/* Rotating ring */}
+                <div className={`absolute inset-0 rounded-full border-2 border-dashed border-brand-teal/30 transition-all duration-500 ${
+                  hoveredStep === i ? 'rotate-180 scale-110' : ''
+                }`} />
+                
+                {/* Main circle */}
+                <div className={`relative w-20 h-20 rounded-full bg-gradient-to-br from-brand-navy to-brand-teal flex items-center justify-center shadow-xl transition-all duration-500 ${
+                  hoveredStep === i 
+                    ? 'shadow-2xl shadow-brand-teal/40 scale-110 rotate-6' 
+                    : 'shadow-lg shadow-brand-navy/25'
                 }`}>
-                  
-                  {/* Icon Circle - Modern Design */}
-                  <div className="relative mb-6">
-                    <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${step.color} flex items-center justify-center shadow-lg transition-all duration-300 ${
-                      isHovered ? 'scale-110 rotate-3' : 'scale-100'
-                    }`}>
-                      <Icon className="w-7 h-7 text-white" />
-                    </div>
-                    {/* Step Badge - Modern */}
-                    <div className={`absolute -top-2 -right-2 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                      isHovered ? 'scale-110' : 'scale-100'
-                    }`}>
-                      <span className={`text-transparent bg-clip-text bg-gradient-to-r ${step.color}`}>
-                        {step.step}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Content - UNCHANGED TEXT */}
-                  <h3 className={`text-xl font-bold mb-3 transition-colors duration-300 ${
-                    isHovered ? 'text-brand-navy' : 'text-slate-900'
+                  <div className={`text-white transition-all duration-500 ${
+                    hoveredStep === i ? 'scale-110 rotate-12' : ''
                   }`}>
-                    {step.title}
-                  </h3>
-                  <p className="text-sm text-slate-500 leading-relaxed mb-5">
-                    {step.desc}
-                  </p>
-
-                  {/* Modern Feature Tags */}
-                  <div className="flex flex-wrap gap-2 pt-3 border-t border-slate-100">
-                    {step.features.map((feature, fidx) => (
-                      <span 
-                        key={fidx} 
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-brand-bg rounded-lg text-xs text-slate-600 transition-all duration-300 ${
-                          isHovered ? 'translate-x-0.5' : 'translate-x-0'
-                        }`}
-                        style={{ transitionDelay: `${fidx * 30}ms` }}
-                      >
-                        <CheckCircle className="w-3 h-3 text-brand-teal" />
-                        {feature}
-                      </span>
-                    ))}
+                    {getStepIcon(step.step)}
                   </div>
+                </div>
 
-                  {/* Modern Hover Arrow */}
-                  <div className={`absolute bottom-5 right-5 transition-all duration-300 ${
-                    isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-2'
+                {/* Step number badge */}
+                <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-brand-amber text-white text-sm font-black flex items-center justify-center shadow-lg animate-bounce-in">
+                  {step.step}
+                </div>
+              </div>
+
+              {/* Card */}
+              <div className={`relative bg-white backdrop-blur-sm rounded-2xl p-6 transition-all duration-500 border-2 ${
+                hoveredStep === i
+                  ? 'border-brand-teal/50 shadow-2xl shadow-brand-teal/20 -translate-y-2'
+                  : 'border-slate-100 shadow-lg hover:shadow-xl'
+              }`}>
+                {/* Shine effect */}
+                <div className={`absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-1000 ${
+                  hoveredStep === i ? 'translate-x-full' : '-translate-x-full'
+                }`} style={{ width: '200%' }} />
+                
+                {/* Icon in card header */}
+                <div className="flex items-center justify-center mb-4">
+                  <div className={`p-3 rounded-xl bg-gradient-to-br from-brand-navy/5 to-brand-teal/5 transition-all duration-500 ${
+                    hoveredStep === i ? 'scale-110 rotate-3' : ''
                   }`}>
-                    <div className="w-7 h-7 rounded-full bg-brand-teal/10 flex items-center justify-center">
-                      <ArrowRight className="w-3.5 h-3.5 text-brand-teal" />
+                    <div className="w-12 h-12 text-brand-teal">
+                      {getStepIcon(step.step)}
                     </div>
                   </div>
                 </div>
 
-                {/* Modern Connector Dot */}
-                {i < stepsWithIcons.length - 1 && (
-                  <div className="hidden md:flex justify-center mt-4">
-                    <div className={`w-1.5 h-1.5 rounded-full bg-brand-teal/40 transition-all duration-300 ${
-                      isHovered ? 'scale-150' : 'scale-100'
-                    }`} />
-                  </div>
-                )}
+                <h3 className={`text-xl font-bold mb-3 transition-all duration-300 bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent ${
+                  hoveredStep === i ? 'scale-105' : ''
+                }`}>
+                  {step.title}
+                </h3>
+                
+                <p className="text-slate-500 leading-relaxed">
+                  {step.desc}
+                </p>
+
+                {/* Decorative dots */}
+                <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  {[...Array(3)].map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`w-1 h-1 rounded-full bg-brand-teal transition-all duration-300 ${
+                        hoveredStep === i ? `animate-pulse delay-${idx * 150}` : ''
+                      }`}
+                    />
+                  ))}
+                </div>
               </div>
-            );
-          })}
+
+              {/* Floating particles */}
+              {hoveredStep === i && (
+                <div className="absolute -z-10 inset-0 pointer-events-none">
+                  {[...Array(6)].map((_, idx) => (
+                    <div
+                      key={idx}
+                      className="absolute w-2 h-2 bg-brand-teal/40 rounded-full animate-float"
+                      style={{
+                        left: `${20 + Math.random() * 60}%`,
+                        top: `${10 + Math.random() * 80}%`,
+                        animationDelay: `${idx * 200}ms`,
+                        animationDuration: '2s'
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
 
-        {/* Modern Bottom Section */}
-        <div className="mt-20 text-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
-          {/* Modern Feature Strip */}
-          <div className="max-w-3xl mx-auto mb-10">
-            <div className="flex flex-wrap justify-center gap-3">
-              {extraFeatures.map((feature, idx) => (
-                <div 
-                  key={idx}
-                  className="group flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full hover:border-brand-teal/30 hover:shadow-md transition-all duration-300 cursor-pointer"
-                >
-                  <feature.icon className="w-3.5 h-3.5 text-brand-teal group-hover:scale-110 transition-transform" />
-                  <span className="text-xs font-medium text-slate-600 group-hover:text-brand-navy">
-                    {feature.label}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Modern CTA */}
-          <div className="inline-flex items-center gap-4 bg-white border border-slate-200 rounded-full p-1 pr-5 shadow-sm">
-            <div className="flex -space-x-2 pl-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div 
-                  key={i} 
-                  className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-navy to-brand-teal border-2 border-white flex items-center justify-center shadow-md"
-                >
-                  <span className="text-[10px] text-white font-bold">✓</span>
-                </div>
-              ))}
-            </div>
-            <span className="text-sm text-slate-500">
-              Join <strong className="text-brand-navy">1,200+ buildings</strong> already using Syndix
-            </span>
-          </div>
-          
-          {/* Modern Button */}
-          <a
-            href="#pricing"
-            className="inline-flex items-center gap-2 mt-8 px-8 py-3.5 bg-gradient-to-r from-brand-navy to-brand-teal text-white font-bold rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-200 group"
-          >
-            <Zap className="w-4 h-4" />
-            Start Your 14-Day Trial
-            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-          </a>
-          <p className="text-xs text-slate-400 mt-3">No credit card required • Cancel anytime</p>
+        {/* Call to action */}
+        <div className="text-center mt-16 animate-fade-in-up animation-delay-500">
+          <button className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-brand-navy to-brand-teal text-white font-bold rounded-full shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-105">
+            <span>Get Started Now</span>
+            <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+            </svg>
+            <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </button>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes bounce-in {
+          0% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          60% {
+            opacity: 1;
+            transform: scale(1.2);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0) scale(1);
+            opacity: 0;
+          }
+          50% {
+            transform: translateY(-20px) scale(1.5);
+            opacity: 1;
+          }
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out forwards;
+        }
+
+        .animate-bounce-in {
+          animation: bounce-in 0.5s ease-out;
+        }
+
+        .animate-float {
+          animation: float 2s ease-in-out infinite;
+        }
+
+        .animation-delay-500 {
+          animation-delay: 500ms;
+          opacity: 0;
+          animation-fill-mode: forwards;
+        }
+
+        .delay-1000 {
+          animation-delay: 1000ms;
+        }
+      `}</style>
     </section>
   );
 }
