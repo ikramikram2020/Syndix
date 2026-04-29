@@ -4,11 +4,11 @@ import { supabase } from '../../lib/supabase';
 import { T } from '../../styles/theme';
 import Layout from '../../components/Layout';
 import { 
-  Home, Building, Users, CreditCard, Wrench, Bell, 
+  Building, Users, CreditCard, Wrench, Bell, 
   Settings, LogOut, Save, Shield, Mail, Phone, MapPin,
   Clock, DollarSign, FileText, UserCheck, AlertCircle,
   ChevronRight, Key, BellRing, Moon, Sun,
-  Receipt, Download, Printer, CheckCircle, Plus
+  Receipt, Download, Printer, CheckCircle, Plus, X
 } from 'lucide-react';
 
 // ============================================
@@ -24,11 +24,13 @@ export default function DashboardSettings() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
   const [buildingName, setBuildingName] = useState('');
   const [buildingAddress, setBuildingAddress] = useState('');
+  const [buildingId, setBuildingId] = useState('');
   const [activeTab, setActiveTab] = useState('general');
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -65,89 +67,66 @@ export default function DashboardSettings() {
     activeTickets: 0
   });
 
+  // Notification Panel State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationList, setNotificationList] = useState<any[]>([]);
+
   // ============================================
   // INITIALIZATION
   // ============================================
   
   useEffect(() => {
-    let isMounted = true;
-    
-    const initializeSettings = async () => {
-      try {
-        // Check for ANY of the possible token names from your dashboard login
-        const token = localStorage.getItem('token') || 
-                     localStorage.getItem('admin_token') || 
-                     localStorage.getItem('dashboard_token') ||
-                     localStorage.getItem('auth_token');
-        
-        // Get admin info from various possible storage keys
-        const name = localStorage.getItem('admin_name') || 
-                    localStorage.getItem('name') || 
-                    localStorage.getItem('user_name') ||
-                    'Administrator';
-        
-        const email = localStorage.getItem('admin_email') || 
-                     localStorage.getItem('email') || 
-                     '';
-        
-        const phone = localStorage.getItem('admin_phone') || 
-                     localStorage.getItem('phone') || 
-                     '';
-        
-        const buildingId = localStorage.getItem('admin_building_id') || 
-                          localStorage.getItem('building_id') || 
-                          '';
-        
-        if (!token) {
-          router.replace('/dashboard'); // Use replace instead of push
-          return;
-        }
-        
-        if (isMounted) {
-          setAdminName(name);
-          setAdminEmail(email);
-          setAdminPhone(phone);
-          await fetchBuildingData(buildingId);
-          await fetchBuildingStats(buildingId);
-          await loadSettings();
-        }
-      } catch (error) {
-        console.error('Settings error:', error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    
-    initializeSettings();
-    return () => { isMounted = false; };
+    checkUserAndBuilding();
   }, []);
+
+  const checkUserAndBuilding = async () => {
+    setLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push('/login');
+        return;
+      }
+      
+      setUser(user);
+      
+      // Get user name from metadata
+      const fullName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Administrator';
+      setAdminName(fullName);
+      setAdminEmail(user.email || '');
+      setAdminPhone(user.user_metadata?.phone || '');
+      
+      // Get building data
+      const { data: buildingData } = await supabase
+        .from('buildings')
+        .select('*')
+        .eq('syndic_id', user.id)
+        .maybeSingle();
+      
+      if (buildingData) {
+        setBuildingName(buildingData.name || '');
+        setBuildingAddress(buildingData.address || '');
+        setBuildingId(buildingData.id);
+        await fetchStats(buildingData.id);
+      }
+      
+      await loadSettings();
+      await fetchNotifications();
+      
+    } catch (error) {
+      console.error('Settings error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ============================================
   // DATA FETCHING
   // ============================================
   
-  const fetchBuildingData = async (buildingId: string) => {
-    if (!buildingId) return;
-    
-    try {
-      const { data: building } = await supabase
-        .from('buildings')
-        .select('*')
-        .eq('id', buildingId)
-        .single();
-      
-      if (building) {
-        setBuildingName(building.name || '');
-        setBuildingAddress(building.address || '');
-      }
-    } catch (err) {
-      console.error('Error fetching building:', err);
-    }
-  };
-  
-  const fetchBuildingStats = async (buildingId: string) => {
-    if (!buildingId) return;
-    
+  const fetchStats = async (buildingId: string) => {
     try {
       // Get total apartments
       const { count: apartmentCount } = await supabase
@@ -189,6 +168,22 @@ export default function DashboardSettings() {
     }
   };
   
+  const fetchNotifications = async () => {
+    try {
+      // Fetch recent notifications
+      const { data: notifications } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('syndic_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      setNotificationList(notifications || []);
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+  
   const loadSettings = async () => {
     try {
       const savedSettings = localStorage.getItem('dashboard_settings');
@@ -207,20 +202,9 @@ export default function DashboardSettings() {
   // HANDLERS
   // ============================================
   
-  const handleLogout = () => {
-    // Clear all possible auth keys
-    localStorage.removeItem('token');
-    localStorage.removeItem('admin_token');
-    localStorage.removeItem('dashboard_token');
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('admin_name');
-    localStorage.removeItem('admin_email');
-    localStorage.removeItem('admin_phone');
-    localStorage.removeItem('admin_building_id');
-    localStorage.removeItem('building_id');
-    localStorage.removeItem('dashboard_settings');
-    
-    router.push('/dashboard');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
   };
   
   const handleSaveSettings = async () => {
@@ -238,23 +222,26 @@ export default function DashboardSettings() {
       
       localStorage.setItem('dashboard_settings', JSON.stringify(settings));
       
-      // Update admin info in localStorage
-      localStorage.setItem('admin_name', adminName);
-      localStorage.setItem('admin_email', adminEmail);
-      localStorage.setItem('admin_phone', adminPhone);
+      // Update user metadata in Supabase
+      if (user) {
+        await supabase.auth.updateUser({
+          data: {
+            full_name: adminName,
+            phone: adminPhone
+          }
+        });
+      }
       
-      // Update in database if possible
-      const adminId = localStorage.getItem('admin_id') || localStorage.getItem('user_id');
-      if (adminId) {
+      // Update building info
+      if (buildingId) {
         await supabase
-          .from('admins')
+          .from('buildings')
           .update({
-            name: adminName,
-            email: adminEmail,
-            phone: adminPhone,
+            name: buildingName,
+            address: buildingAddress,
             updated_at: new Date()
           })
-          .eq('id', adminId);
+          .eq('id', buildingId);
       }
       
       setSuccessMessage('Settings saved successfully!');
@@ -267,30 +254,15 @@ export default function DashboardSettings() {
     }
   };
   
-  const handleUpdateBuilding = async () => {
-    setSaving(true);
+  const markNotificationAsRead = async (notificationId: string) => {
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('id', notificationId);
     
-    try {
-      const buildingId = localStorage.getItem('admin_building_id') || localStorage.getItem('building_id');
-      
-      if (buildingId) {
-        await supabase
-          .from('buildings')
-          .update({
-            name: buildingName,
-            address: buildingAddress,
-            updated_at: new Date()
-          })
-          .eq('id', buildingId);
-      }
-      
-      setSuccessMessage('Building information updated!');
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      setErrorMessage('Failed to update building');
-    } finally {
-      setSaving(false);
-    }
+    setNotificationList(prev => 
+      prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
+    );
   };
 
   // ============================================
@@ -311,7 +283,7 @@ export default function DashboardSettings() {
   
   if (loading) {
     return (
-      <Layout>
+      <Layout title="Settings" subtitle="Manage your preferences">
         <div style={{ 
           minHeight: '60vh',
           display: 'flex',
@@ -333,12 +305,13 @@ export default function DashboardSettings() {
   // ============================================
   
   return (
-    <Layout>
+    <Layout title="Settings" subtitle="Manage your building and account preferences">
       <div style={{ 
         minHeight: '100vh', 
         background: T.canvasBg,
         fontFamily: "'Outfit', 'Segoe UI', system-ui, sans-serif",
-        paddingBottom: 40
+        paddingBottom: 40,
+        position: 'relative'
       }}>
         <style>{`
           @keyframes fadeInUp {
@@ -356,77 +329,17 @@ export default function DashboardSettings() {
             border-color: ${T.orange};
             box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
           }
+          @keyframes slideIn {
+            from { opacity: 0; transform: translateX(100%); }
+            to { opacity: 1; transform: translateX(0); }
+          }
+          .slide-in {
+            animation: slideIn 0.3s ease;
+          }
         `}</style>
 
-        {/* Header */}
-        <div style={{
-          background: `linear-gradient(135deg, ${T.navy}, ${T.navyDeep})`,
-          padding: '24px 20px 48px',
-          borderBottomLeftRadius: 32,
-          borderBottomRightRadius: 32,
-          position: 'relative',
-          overflow: 'hidden',
-          marginBottom: -20
-        }}>
-          <div style={{ position: 'absolute', top: -50, right: -50, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }} />
-          
-          <div style={{ position: 'relative', zIndex: 2 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <Settings size={14} color={T.orange} />
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', letterSpacing: 1 }}>DASHBOARD SETTINGS</span>
-                </div>
-                <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700, color: '#fff' }}>Settings</h1>
-                <p style={{ margin: '4px 0 0', fontSize: 13, color: 'rgba(255,255,255,0.7)' }}>Manage your building and account preferences</p>
-              </div>
-              
-              <button 
-                onClick={handleLogout}
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-              >
-                <LogOut size={18} color="#fff" />
-              </button>
-            </div>
-
-            {/* Stats Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 8 }}>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px', textAlign: 'center' }}>
-                <Building size={14} color={T.orange} style={{ marginBottom: 4 }} />
-                <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>{stats.totalApartments}</p>
-                <p style={{ margin: 0, fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Apartments</p>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px', textAlign: 'center' }}>
-                <Users size={14} color={T.teal} style={{ marginBottom: 4 }} />
-                <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>{stats.totalResidents}</p>
-                <p style={{ margin: 0, fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Residents</p>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px', textAlign: 'center' }}>
-                <DollarSign size={14} color={T.green} style={{ marginBottom: 4 }} />
-                <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#fff' }}>{stats.pendingPayments.toLocaleString()}</p>
-                <p style={{ margin: 0, fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Pending DZD</p>
-              </div>
-              <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '10px', textAlign: 'center' }}>
-                <Wrench size={14} color={T.orange} style={{ marginBottom: 4 }} />
-                <p style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>{stats.activeTickets}</p>
-                <p style={{ margin: 0, fontSize: 9, color: 'rgba(255,255,255,0.5)' }}>Open Tickets</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Settings Content */}
-        <div style={{ padding: '0 20px', marginTop: -20 }}>
+        <div style={{ padding: '0 20px' }}>
           
           {/* Messages */}
           {successMessage && (
@@ -460,6 +373,30 @@ export default function DashboardSettings() {
               <p style={{ margin: 0, fontSize: 13, color: '#ff0000' }}>{errorMessage}</p>
             </div>
           )}
+          
+          {/* Settings Stats Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
+            <div style={{ background: T.white, borderRadius: 16, padding: '14px', textAlign: 'center', border: `1px solid ${T.border}` }}>
+              <Building size={18} color={T.orange} style={{ marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.navy }}>{stats.totalApartments}</p>
+              <p style={{ margin: 0, fontSize: 10, color: T.textSm }}>Apartments</p>
+            </div>
+            <div style={{ background: T.white, borderRadius: 16, padding: '14px', textAlign: 'center', border: `1px solid ${T.border}` }}>
+              <Users size={18} color={T.teal} style={{ marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.navy }}>{stats.totalResidents}</p>
+              <p style={{ margin: 0, fontSize: 10, color: T.textSm }}>Residents</p>
+            </div>
+            <div style={{ background: T.white, borderRadius: 16, padding: '14px', textAlign: 'center', border: `1px solid ${T.border}` }}>
+              <DollarSign size={18} color={T.green} style={{ marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: T.navy }}>{stats.pendingPayments.toLocaleString()} DZD</p>
+              <p style={{ margin: 0, fontSize: 10, color: T.textSm }}>Pending</p>
+            </div>
+            <div style={{ background: T.white, borderRadius: 16, padding: '14px', textAlign: 'center', border: `1px solid ${T.border}` }}>
+              <Wrench size={18} color={T.orange} style={{ marginBottom: 6 }} />
+              <p style={{ margin: 0, fontSize: 20, fontWeight: 700, color: T.navy }}>{stats.activeTickets}</p>
+              <p style={{ margin: 0, fontSize: 10, color: T.textSm }}>Open Tickets</p>
+            </div>
+          </div>
           
           {/* Settings Navigation */}
           <div style={{
@@ -548,14 +485,15 @@ export default function DashboardSettings() {
                       <input
                         type="email"
                         value={adminEmail}
-                        onChange={(e) => setAdminEmail(e.target.value)}
+                        disabled
                         style={{
                           flex: 1,
                           padding: '12px 14px',
                           border: `1px solid ${T.border}`,
                           borderRadius: 12,
                           fontSize: 14,
-                          background: T.white
+                          background: T.surface,
+                          color: T.textSm
                         }}
                       />
                     </div>
@@ -675,24 +613,6 @@ export default function DashboardSettings() {
                       />
                     </div>
                   </div>
-                  
-                  <button
-                    onClick={handleUpdateBuilding}
-                    disabled={saving}
-                    style={{
-                      padding: '12px',
-                      background: T.orange,
-                      border: 'none',
-                      borderRadius: 12,
-                      color: '#fff',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      cursor: saving ? 'not-allowed' : 'pointer',
-                      opacity: saving ? 0.7 : 1
-                    }}
-                  >
-                    {saving ? 'Updating...' : 'Update Building Info'}
-                  </button>
                 </div>
               </div>
             </div>
@@ -965,6 +885,114 @@ export default function DashboardSettings() {
           </div>
         </div>
       </div>
+
+      {/* ============================================
+          NOTIFICATION PANEL (Slide-in from right)
+      ============================================ */}
+      
+      {showNotifications && (
+        <>
+          <div 
+            onClick={() => setShowNotifications(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0,0,0,0.5)',
+              zIndex: 999,
+              animation: 'fadeIn 0.3s ease'
+            }}
+          />
+          <div className="slide-in" style={{
+            position: 'fixed',
+            top: 0,
+            right: 0,
+            width: 380,
+            height: '100vh',
+            background: T.white,
+            boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '20px',
+              borderBottom: `1px solid ${T.border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: T.navy,
+              color: '#fff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Bell size={18} color={T.orange} />
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Notifications</h3>
+              </div>
+              <button
+                onClick={() => setShowNotifications(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={16} color="#fff" />
+              </button>
+            </div>
+            
+            {/* Notifications List */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+              {notificationList.length === 0 ? (
+                <div style={{ 
+                  textAlign: 'center', 
+                  padding: '40px 20px',
+                  color: T.textSm
+                }}>
+                  <Bell size={48} color={T.border} style={{ marginBottom: 12 }} />
+                  <p style={{ margin: 0, fontSize: 14 }}>No notifications yet</p>
+                  <p style={{ margin: '4px 0 0', fontSize: 12 }}>New notifications will appear here</p>
+                </div>
+              ) : (
+                notificationList.map(notification => (
+                  <div 
+                    key={notification.id}
+                    onClick={() => markNotificationAsRead(notification.id)}
+                    style={{
+                      padding: '12px',
+                      borderRadius: 12,
+                      background: notification.read ? T.white : `${T.orange}08`,
+                      border: `1px solid ${notification.read ? T.border : T.orange}30`,
+                      marginBottom: 10,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: T.navy }}>
+                      {notification.title}
+                    </p>
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: T.textSm }}>
+                      {notification.message}
+                    </p>
+                    <p style={{ margin: '6px 0 0', fontSize: 10, color: T.textSm }}>
+                      {new Date(notification.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </Layout>
   );
 }
