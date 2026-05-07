@@ -1,4 +1,4 @@
-import { Check, Zap } from "lucide-react";
+import { Check, Zap, Headphones, BarChart3, Download, Building2 } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
 
 export default function Pricing() {
@@ -20,7 +20,8 @@ export default function Pricing() {
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {/* Starter Plan - 6,000 DZD/month */}
+          
+          {/* STARTER PLAN - 6,000 DZD */}
           <div className="relative rounded-2xl p-8 flex flex-col transition-all duration-200 hover:-translate-y-1 bg-white border border-slate-200 hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-300">
             <div className="mb-7">
               <p className="text-sm font-bold mb-1.5 text-slate-500">
@@ -80,20 +81,30 @@ export default function Pricing() {
                   Resident portal (PWA) access
                 </span>
               </li>
-              <li className="flex items-start gap-3 opacity-50">
+              
+              {/* Missing features - greyed out */}
+              <li className="flex items-start gap-3 opacity-40">
                 <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-xs text-slate-400">—</span>
                 </div>
                 <span className="text-sm leading-relaxed text-slate-400">
-                  Advanced reporting
+                  Advanced analytics
                 </span>
               </li>
-              <li className="flex items-start gap-3 opacity-50">
+              <li className="flex items-start gap-3 opacity-40">
                 <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-xs text-slate-400">—</span>
                 </div>
                 <span className="text-sm leading-relaxed text-slate-400">
                   PDF exports
+                </span>
+              </li>
+              <li className="flex items-start gap-3 opacity-40">
+                <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs text-slate-400">—</span>
+                </div>
+                <span className="text-sm leading-relaxed text-slate-400">
+                  Priority support
                 </span>
               </li>
             </ul>
@@ -106,7 +117,7 @@ export default function Pricing() {
             </a>
           </div>
 
-          {/* Professional Plan - 12,000 DZD/month - MOST POPULAR */}
+          {/* PROFESSIONAL PLAN - 12,000 DZD (MOST POPULAR) */}
           <div className="relative rounded-2xl p-8 flex flex-col transition-all duration-200 hover:-translate-y-1 bg-gradient-to-b from-brand-navy to-[#162070] text-white shadow-2xl shadow-brand-navy/25 border border-brand-navy/20">
             <div className="absolute -top-3.5 start-1/2 -translate-x-1/2">
               <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-brand-amber to-orange-400 text-white text-xs font-bold rounded-full shadow-lg shadow-brand-amber/30">
@@ -130,72 +141,80 @@ export default function Pricing() {
               <p className="text-sm text-blue-200/70">
                 For medium buildings up to 50 units
               </p>
+              <div className="mt-2 inline-block px-2 py-0.5 bg-white/10 rounded text-xs">
+                <span className="text-blue-200">✨ Includes Priority Support</span>
+              </div>
             </div>
 
             <ul className="space-y-3 mb-8 flex-1">
+              {/* Core features */}
               <li className="flex items-start gap-3">
                 <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <Check size={11} className="text-white" />
                 </div>
                 <span className="text-sm leading-relaxed text-blue-100">
-                  Payment tracking
+                  Everything in Starter
                 </span>
               </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
+              
+              {/* Advanced Analytics - PRO exclusive */}
+              <li className="flex items-start gap-3 bg-white/5 rounded-lg p-2 -mx-2">
+                <div className="w-5 h-5 rounded-full bg-brand-amber/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <BarChart3 size={11} className="text-brand-amber" />
                 </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Resident management
-                </span>
+                <div>
+                  <span className="text-sm font-medium leading-relaxed text-white">
+                    Advanced analytics dashboard
+                  </span>
+                  <p className="text-xs text-blue-200/60">
+                    Real-time charts, payment trends, collection rates
+                  </p>
+                </div>
               </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
+              
+              {/* PDF & CSV Exports - PRO exclusive */}
+              <li className="flex items-start gap-3 bg-white/5 rounded-lg p-2 -mx-2">
+                <div className="w-5 h-5 rounded-full bg-brand-amber/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Download size={11} className="text-brand-amber" />
                 </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Maintenance requests
-                </span>
+                <div>
+                  <span className="text-sm font-medium leading-relaxed text-white">
+                    PDF & CSV exports
+                  </span>
+                  <p className="text-xs text-blue-200/60">
+                    Professional invoices and financial reports
+                  </p>
+                </div>
               </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
+              
+              {/* Multi-building - PRO exclusive */}
+              <li className="flex items-start gap-3 bg-white/5 rounded-lg p-2 -mx-2">
+                <div className="w-5 h-5 rounded-full bg-brand-amber/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Building2 size={11} className="text-brand-amber" />
                 </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Announcements
-                </span>
+                <div>
+                  <span className="text-sm font-medium leading-relaxed text-white">
+                    Multi-building management
+                  </span>
+                  <p className="text-xs text-blue-200/60">
+                    Manage entire portfolio from one dashboard
+                  </p>
+                </div>
               </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
+              
+              {/* Priority Support - PRO exclusive (HIGHLIGHTED) */}
+              <li className="flex items-start gap-3 bg-brand-amber/15 rounded-lg p-2 -mx-2 border border-brand-amber/30">
+                <div className="w-5 h-5 rounded-full bg-brand-amber/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Headphones size={11} className="text-brand-amber" />
                 </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Resident portal (PWA) access
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
+                <div>
+                  <span className="text-sm font-bold leading-relaxed text-brand-amber">
+                    Priority support
+                  </span>
+                  <p className="text-xs text-blue-200/70">
+                    Faster response times • Dedicated support channel
+                  </p>
                 </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Advanced reporting
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
-                </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  PDF & CSV exports
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-white" />
-                </div>
-                <span className="text-sm leading-relaxed text-blue-100">
-                  Multi-building management tools
-                </span>
               </li>
             </ul>
 
@@ -207,7 +226,7 @@ export default function Pricing() {
             </a>
           </div>
 
-          {/* Enterprise Plan - Custom Pricing */}
+          {/* ENTERPRISE PLAN - Custom */}
           <div className="relative rounded-2xl p-8 flex flex-col transition-all duration-200 hover:-translate-y-1 bg-white border border-slate-200 hover:shadow-xl hover:shadow-slate-200/50 hover:border-slate-300">
             <div className="mb-7">
               <p className="text-sm font-bold mb-1.5 text-slate-500">
@@ -237,31 +256,7 @@ export default function Pricing() {
                   <Check size={11} className="text-brand-teal" />
                 </div>
                 <span className="text-sm leading-relaxed text-slate-600">
-                  Advanced support
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-brand-teal/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-brand-teal" />
-                </div>
-                <span className="text-sm leading-relaxed text-slate-600">
-                  Onboarding assistance
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-brand-teal/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-brand-teal" />
-                </div>
-                <span className="text-sm leading-relaxed text-slate-600">
-                  Premium integrations
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-brand-teal/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Check size={11} className="text-brand-teal" />
-                </div>
-                <span className="text-sm leading-relaxed text-slate-600">
-                  SLA agreement
+                  24/7 phone & chat support
                 </span>
               </li>
               <li className="flex items-start gap-3">
@@ -270,6 +265,22 @@ export default function Pricing() {
                 </div>
                 <span className="text-sm leading-relaxed text-slate-600">
                   Dedicated account manager
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-brand-teal/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check size={11} className="text-brand-teal" />
+                </div>
+                <span className="text-sm leading-relaxed text-slate-600">
+                  Onboarding & training sessions
+                </span>
+              </li>
+              <li className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-brand-teal/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <Check size={11} className="text-brand-teal" />
+                </div>
+                <span className="text-sm leading-relaxed text-slate-600">
+                  Custom integrations (Edahabia/CIB)
                 </span>
               </li>
             </ul>
