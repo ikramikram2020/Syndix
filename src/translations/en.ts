@@ -88,7 +88,7 @@ const en = {
       {
         name: 'Free Trial',
         price: 'Free',
-        period: '30 days',
+        period: '14 days',
         desc: 'Perfect for getting started',
         features: ['1 Building', 'Up to 20 Residents', 'Basic Announcements', 'Payment Tracking', 'Email Support'],
         cta: 'Start Free Trial',

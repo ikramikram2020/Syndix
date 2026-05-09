@@ -50,7 +50,7 @@ export default function CTA() {
 
             <div className="mt-10 flex flex-wrap gap-5 justify-center text-sm text-blue-300/50">
               {[
-                "30-day free trial",
+                "14-day free trial",
                 "No setup fees",
                 "Cancel anytime",
                 "Full support included",

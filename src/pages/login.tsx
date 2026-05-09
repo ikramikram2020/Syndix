@@ -58,7 +58,7 @@ export default function LoginPage() {
 
           <div className="space-y-4">
             {[
-              "Free 30-day trial, no credit card needed",
+              "Free 14-day trial, no credit card needed",
               "Manage unlimited buildings & residents",
               "QR access, payments, tickets & more",
               "Get started in under 5 minutes"
