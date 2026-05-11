@@ -1,5 +1,4 @@
 // ─── SYNDIX Design Tokens ─────────────────────────────────────────────────────
-// Centralized theme - import this in ALL components instead of repeating colors
 
 export const T = {
   // Sidebar

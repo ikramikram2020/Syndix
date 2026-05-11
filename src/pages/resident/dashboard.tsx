@@ -291,7 +291,7 @@ export default function ResidentDashboard() {
       
       <div style={{ padding: '0 20px', marginTop: -30 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          
+
           {/* Due Amount Card - Primary Card */}
           <div className="fade-in-up card-hover" style={{ 
             background: `linear-gradient(135deg, ${T.textMd}, ${T.navyDeep})`,

@@ -66,6 +66,8 @@ export default function Hero() {
     { value: "99.2%", label: t.hero.stats.requests },
   ];
 
+  const demoVideoUrl = "https://drive.google.com/file/d/1NQRq_bzGR7clQWyD06u3AD4PPH--oOH8/view?usp=sharing";
+
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-20 bg-brand-bg bg-hero-grid">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -115,7 +117,9 @@ export default function Hero() {
                 />
               </a>
               <a
-                href="#dashboard"
+                href={demoVideoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="group inline-flex items-center gap-3 px-6 py-3.5 bg-white border border-slate-200 hover:border-brand-teal/50 text-slate-700 hover:text-brand-teal font-semibold rounded-xl transition-all duration-200 shadow-sm hover:shadow-md text-sm"
               >
                 <span className="w-7 h-7 rounded-full bg-brand-teal/10 flex items-center justify-center">
