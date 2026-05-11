@@ -66,7 +66,7 @@ export default function Hero() {
     { value: "99.2%", label: t.hero.stats.requests },
   ];
 
-  const demoVideoUrl = "https://drive.google.com/file/d/1NQRq_bzGR7clQWyD06u3AD4PPH--oOH8/view?usp=sharing";
+  const demoVideoUrl = "https://drive.google.com/file/d/19yRS6YoATLNh174WZv8UxEMURHG39IaW/view?usp=sharing";
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden pt-20 bg-brand-bg bg-hero-grid">
