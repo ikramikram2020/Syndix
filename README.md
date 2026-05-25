@@ -19,26 +19,24 @@
 
 ## 📖 About
 
-**SYNDIX** is a full-stack SaaS platform that modernizes residential building management in Algeria. It bridges the gap between informal syndic practices and professional digital tools — giving property managers a powerful dashboard and residents a seamless mobile experience.
-
-Built as a graduation project under **Ministerial Decree No. 1275 — "Un diplôme, une startup"** at Zain Achour University, Djelfa, Algeria.
+**SYNDIX** is a full-stack SaaS platform that modernizes residential building management in Algeria. It bridges the gap between informal management practices and professional digital tools — giving building managers a powerful dashboard and residents a seamless mobile experience.
 
 ### The Problem
 
-Algerian residential buildings rely on paper-based or WhatsApp-based coordination between syndics and residents — leading to lost fee records, untracked maintenance requests, and zero financial transparency.
+Algerian residential buildings rely on paper-based or WhatsApp-based coordination between building managers and residents — leading to lost fee records, untracked maintenance requests, and zero financial transparency.
 
 ### The Solution
 
 SYNDIX provides a centralized, secure platform with two portals:
 
-- **Syndic Dashboard** — Full management control: residents, fees, maintenance, finances, and reports.
+- **Manager Dashboard** — Full management control: residents, fees, maintenance, finances, and reports.
 - **Resident PWA** — Mobile-first experience for fee payment, maintenance requests, and announcements.
 
 ---
 
 ## ✨ Features
 
-### 🏠 Syndic Dashboard
+### 🏠 Manager Dashboard
 - **Resident Management** — Add, edit, and manage all residents and apartment assignments
 - **Fee Tracking** — Issue, track, and export monthly/annual fee records per apartment
 - **Maintenance Requests** — Receive, assign, and update maintenance tickets in real time
@@ -136,12 +134,12 @@ Syndix/
 ├── public/                  # Static assets (icons, images, manifest)
 ├── src/
 │   ├── app/                 # Next.js App Router pages
-│   │   ├── dashboard/       # Syndic dashboard routes
+│   │   ├── dashboard/       # Manager dashboard routes
 │   │   ├── resident/        # Resident PWA routes
 │   │   ├── login/           # Authentication pages
 │   │   └── api/             # API route handlers
 │   ├── components/          # Reusable UI components
-│   │   ├── dashboard/       # Dashboard-specific components
+│   │   ├── dashboard/       # Manager dashboard components
 │   │   ├── resident/        # Resident-facing components
 │   │   └── ui/              # Shared UI primitives
 │   ├── lib/                 # Utilities, Supabase client, helpers
@@ -194,7 +192,12 @@ To deploy your own instance:
 
 ---
 
+## 🌱 Project Background
 
+SYNDIX was built to solve a real and underserved problem in Algeria's residential sector. It targets the gap between informal building management practices and the need for modern, transparent digital tools — starting with a pilot focus on the Djelfa region.
+
+
+---
 
 ## 🤝 Contributing
 
@@ -216,5 +219,6 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 
 <div align="center">
 
+Made with ❤️ in Algeria · **SYNDIX** — Modernizing building management, one building at a time.
 
 </div>
